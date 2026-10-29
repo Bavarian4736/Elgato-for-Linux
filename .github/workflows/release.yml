@@ -1,4 +1,4 @@
-name: Release installers
+name: Release Linux installer
 
 on:
   push:
@@ -15,13 +15,13 @@ permissions:
   contents: write
 
 jobs:
-  version:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-      tag: ${{ steps.ver.outputs.tag }}
     steps:
-      - id: ver
+      - uses: actions/checkout@v4
+
+      - name: Version bestimmen
+        id: ver
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             V="${{ inputs.version }}"
@@ -37,115 +37,38 @@ jobs:
             echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           fi
 
-  linux:
-    needs: version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - name: Abhängigkeiten
         run: sudo apt-get update && sudo apt-get install -y rsync
+
       - name: Linux-Installer bauen
         env:
-          STUDIO_VERSION: ${{ needs.version.outputs.version }}
+          STUDIO_VERSION: ${{ steps.ver.outputs.version }}
         run: |
           chmod +x packaging/linux/build-installer.sh
           ./packaging/linux/build-installer.sh dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Studio-Linux-Installer
-          path: dist/Studio-Linux-Installer.sh
+          ls -lh dist/Studio-Linux-Installer.sh
 
-  macos:
-    needs: version
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: macOS-Installer bauen
-        env:
-          STUDIO_VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          chmod +x packaging/macos/build-installer.sh
-          ./packaging/macos/build-installer.sh dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Studio-macOS-Installer
-          path: dist/Studio-macOS-Installer.zip
-
-  windows:
-    needs: version
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Windows-Installer bauen
-        env:
-          STUDIO_VERSION: ${{ needs.version.outputs.version }}
-        shell: pwsh
-        run: |
-          ./packaging/windows/build-installer.ps1 -OutDir dist -Version $env:STUDIO_VERSION
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Studio-Windows-Setup
-          path: |
-            dist/Studio-Windows-Setup.exe
-            dist/Studio-Windows-Installer.zip
-          if-no-files-found: error
-
-  release:
-    needs: [version, linux, macos, windows]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Assets sammeln
-        run: |
-          mkdir -p dist
-          cp artifacts/Studio-Linux-Installer/Studio-Linux-Installer.sh dist/
-          cp artifacts/Studio-macOS-Installer/Studio-macOS-Installer.zip dist/
-          if [[ -f artifacts/Studio-Windows-Setup/Studio-Windows-Setup.exe ]]; then
-            cp artifacts/Studio-Windows-Setup/Studio-Windows-Setup.exe dist/
-          else
-            # Fallback, falls Inno fehlschlägt: ZIP als Windows-Asset
-            cp artifacts/Studio-Windows-Setup/Studio-Windows-Installer.zip dist/Studio-Windows-Setup.zip
-          fi
-          ls -lh dist
       - name: Release erzeugen / aktualisieren
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.version.outputs.tag }}
-          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
           NOTES="$(mktemp)"
           {
             echo "## Studio ${VERSION}"
             echo
-            echo "Ein Installer pro Betriebssystem. Beim Start HD60, Wave Link Linux (Spurwerk) oder beides wählen."
+            echo "Linux-Installer für Nobara/Fedora. Beim Start **HD60**, **Wave Link Linux (Spurwerk)** oder **beides** wählen."
             echo
-            echo "| OS | Datei |"
-            echo "| --- | --- |"
-            echo "| Linux | \`Studio-Linux-Installer.sh\` |"
-            echo "| macOS | \`Studio-macOS-Installer.zip\` |"
-            echo "| Windows | \`Studio-Windows-Setup.exe\` (unsigned) |"
+            echo "**Download:** \`Studio-Linux-Installer.sh\`"
             echo
-            echo "**Hinweis:** Beide Programme laufen vollständig unter **Nobara/Fedora (Linux)**."
-            echo "macOS- und Windows-Installer legen ein Dateipaket ab (Übertragen auf Linux / VM / WSL)."
-            echo
-            echo "### Linux"
             echo '```bash'
             echo "chmod +x Studio-Linux-Installer.sh"
             echo "./Studio-Linux-Installer.sh"
             echo '```'
-            echo
-            echo "### macOS"
-            echo "ZIP entpacken → Rechtsklick auf \`Studio-Installer.command\` → Öffnen."
-            echo
-            echo "### Windows"
-            echo "\`Studio-Windows-Setup.exe\` starten. SmartScreen: „Weitere Informationen“ → „Trotzdem ausführen“."
           } > "$NOTES"
 
-          # Tag bei workflow_dispatch anlegen, falls nötig
           if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -154,11 +77,10 @@ jobs:
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" --notes-file "$NOTES"
+            gh release upload "$TAG" dist/Studio-Linux-Installer.sh --clobber
+            gh release edit "$TAG" --notes-file "$NOTES" --title "Studio ${VERSION}"
           else
-            gh release create "$TAG" dist/* \
+            gh release create "$TAG" dist/Studio-Linux-Installer.sh \
               --title "Studio ${VERSION}" \
-              --notes-file "$NOTES" \
-              --verify-tag
+              --notes-file "$NOTES"
           fi

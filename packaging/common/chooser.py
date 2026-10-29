@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Studio-Installer: HD60 und/oder Wave Link Linux auswählen und einrichten."""
+"""Studio-Installer (Linux): HD60 und/oder Wave Link Linux auswählen und einrichten."""
 
 from __future__ import annotations
 
 import argparse
-import os
-import platform
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -27,82 +24,27 @@ LINUX_NOTE = (
     "Beide Programme sind für Nobara/Fedora (Linux) gebaut. "
     "HD60 braucht den Kernel-Treiber; Wave Link braucht PipeWire."
 )
-NONLINUX_NOTE = (
-    "Dieses Studio-Paket läuft vollständig nur unter Linux (Nobara/Fedora). "
-    "Auf diesem System werden die gewählten Programme als Dateipaket "
-    "in den Zielordner kopiert — zum Übertragen auf einen Linux-Rechner "
-    "oder zur Nutzung in einer Linux-VM / unter WSL2 (soweit möglich)."
-)
 
 
 def studio_root() -> Path:
     """Repo- oder Payload-Wurzel: packaging/common/chooser.py → zwei Ebenen hoch."""
     here = Path(__file__).resolve()
-    # In Release-Payloads: <payload>/packaging/common/chooser.py
-    # Im Checkout: dasselbe Layout
     root = here.parents[2]
     if (root / "capture-card").is_dir() and (root / "wave-link-linux").is_dir():
         return root
-    # Fallback: neben dem Skript gebündeltes payload/
     alt = here.parent / "payload"
     if (alt / "capture-card").is_dir():
         return alt
     return root
 
 
-def is_linux() -> bool:
-    return sys.platform.startswith("linux")
-
-
-def is_macos() -> bool:
-    return sys.platform == "darwin"
-
-
-def is_windows() -> bool:
-    return sys.platform.startswith("win")
-
-
-def detect_os_label() -> str:
-    system = platform.system()
-    if system == "Linux":
-        return "Linux"
-    if system == "Darwin":
-        return "macOS"
-    if system == "Windows":
-        return "Windows"
-    return system or "unbekannt"
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Studio-Installer: HD60 und/oder Wave Link Linux wählen.",
     )
-    p.add_argument(
-        "--hd60",
-        action="store_true",
-        help="HD60 installieren",
-    )
-    p.add_argument(
-        "--wavelink",
-        action="store_true",
-        help="Wave Link Linux installieren",
-    )
-    p.add_argument(
-        "--both",
-        action="store_true",
-        help="Beide Programme installieren",
-    )
-    p.add_argument(
-        "--dest",
-        type=Path,
-        default=None,
-        help="Zielordner für Dateipaket (nicht-Linux bzw. --bundle-only)",
-    )
-    p.add_argument(
-        "--bundle-only",
-        action="store_true",
-        help="Nur Dateien kopieren, Installer der Programme nicht ausführen",
-    )
+    p.add_argument("--hd60", action="store_true", help="HD60 installieren")
+    p.add_argument("--wavelink", action="store_true", help="Wave Link Linux installieren")
+    p.add_argument("--both", action="store_true", help="Beide Programme installieren")
     p.add_argument(
         "--noninteractive",
         action="store_true",
@@ -112,7 +54,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def choose_interactive() -> set[str]:
-    """CLI-Menü; optional tkinter, falls vorhanden."""
     try:
         return _choose_tk()
     except Exception:
@@ -122,7 +63,7 @@ def choose_interactive() -> set[str]:
 def _choose_cli() -> set[str]:
     print()
     print("Studio — was soll eingerichtet werden?")
-    print(f"  System: {detect_os_label()}")
+    print("  System: Linux (Nobara/Fedora)")
     print()
     print("  1) Nur HD60")
     print("  2) Nur Wave Link Linux (Spurwerk)")
@@ -147,7 +88,6 @@ def _choose_tk() -> set[str]:
     import tkinter as tk
     from tkinter import messagebox, ttk
 
-    selected: set[str] = set()
     result: dict[str, set[str] | None] = {"value": None}
 
     root = tk.Tk()
@@ -163,7 +103,7 @@ def _choose_tk() -> set[str]:
     )
     ttk.Label(
         frame,
-        text=f"System: {detect_os_label()}\nWähle die Programme zum Einrichten:",
+        text="Linux (Nobara/Fedora)\nWähle die Programme zum Einrichten:",
         justify="left",
     ).grid(row=1, column=0, sticky="w", pady=(8, 12))
 
@@ -181,8 +121,7 @@ def _choose_tk() -> set[str]:
         ).grid(row=row, column=0, sticky="w", pady=4)
         row += 1
 
-    note = LINUX_NOTE if is_linux() else NONLINUX_NOTE
-    ttk.Label(frame, text=note, wraplength=380, justify="left").grid(
+    ttk.Label(frame, text=LINUX_NOTE, wraplength=380, justify="left").grid(
         row=row, column=0, sticky="w", pady=(12, 8)
     )
     row += 1
@@ -214,8 +153,7 @@ def _choose_tk() -> set[str]:
     if value is None or len(value) == 0:
         print("Abgebrochen.")
         sys.exit(0)
-    selected |= value
-    return selected
+    return value
 
 
 def resolve_selection(args: argparse.Namespace) -> set[str]:
@@ -235,88 +173,6 @@ def resolve_selection(args: argparse.Namespace) -> set[str]:
         )
         sys.exit(2)
     return choose_interactive()
-
-
-def default_bundle_dest() -> Path:
-    home = Path.home()
-    if is_windows():
-        base = Path(os.environ.get("LOCALAPPDATA", str(home)))
-        return base / "Studio"
-    if is_macos():
-        return home / "Applications" / "Studio"
-    return home / "Studio"
-
-
-def copy_bundle(root: Path, dest: Path, programs: set[str]) -> None:
-    dest.mkdir(parents=True, exist_ok=True)
-    # Immer README und Meta mitnehmen
-    for name in ("README.md", ".gitignore"):
-        src = root / name
-        if src.is_file():
-            shutil.copy2(src, dest / name)
-
-    mapping = {
-        "hd60": [
-            ("capture-card", "capture-card"),
-            ("hd60s", "hd60s"),
-        ],
-        "wavelink": [
-            ("wave-link-linux", "wave-link-linux"),
-            ("wavelink-linux", "wavelink-linux"),
-        ],
-    }
-    # Gemeinsamer Meta-Installer
-    for name in ("install.sh",):
-        src = root / name
-        if src.is_file():
-            shutil.copy2(src, dest / name)
-            if not is_windows():
-                (dest / name).chmod(0o755)
-
-    for key in programs:
-        for rel_src, rel_dst in mapping[key]:
-            src = root / rel_src
-            dst = dest / rel_dst
-            if src.is_dir():
-                if dst.exists():
-                    shutil.rmtree(dst)
-                shutil.copytree(
-                    src,
-                    dst,
-                    ignore=shutil.ignore_patterns(
-                        ".git", "__pycache__", "*.pyc", ".venv", "venv"
-                    ),
-                )
-            elif src.is_file():
-                shutil.copy2(src, dst)
-                if not is_windows():
-                    dst.chmod(0o755)
-
-    readme = dest / "INSTALL-HINWEIS.txt"
-    lines = [
-        "Studio — lokal entpacktes Paket",
-        "================================",
-        "",
-        LINUX_NOTE if is_linux() else NONLINUX_NOTE,
-        "",
-        "Gewählt:",
-    ]
-    for key in sorted(programs):
-        lines.append(f"  - {PROGRAMS[key]['name']}")
-    lines.extend(
-        [
-            "",
-            "Unter Linux (Nobara/Fedora) im entpackten Ordner:",
-            "  ./install.sh",
-            "oder einzeln:",
-            "  ./capture-card/install.sh",
-            "  ./wave-link-linux/install.sh",
-            "",
-            f"Quelle: {root}",
-        ]
-    )
-    readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Dateien nach {dest} kopiert.")
 
 
 def run_linux_install(root: Path, programs: set[str]) -> int:
@@ -344,50 +200,37 @@ def run_linux_install(root: Path, programs: set[str]) -> int:
     return status
 
 
-def print_summary(programs: set[str], mode: str, dest: Path | None) -> None:
+def print_summary(programs: set[str]) -> None:
     print()
     print("Fertig.")
-    print(f"  Modus: {mode}")
     for key in sorted(programs):
         print(f"  • {PROGRAMS[key]['name']}")
-    if dest is not None:
-        print(f"  Ziel: {dest}")
-    if is_linux() and mode == "install":
-        if "hd60" in programs:
-            print("  Start HD60:        hd60s")
-        if "wavelink" in programs:
-            print("  Start Wave Link:   wavelink-linux")
+    if "hd60" in programs:
+        print("  Start HD60:        hd60s")
+    if "wavelink" in programs:
+        print("  Start Wave Link:   wavelink-linux")
 
 
 def main(argv: list[str] | None = None) -> int:
+    if not sys.platform.startswith("linux"):
+        print(
+            "Dieser Installer ist nur für Linux (Nobara/Fedora).",
+            file=sys.stderr,
+        )
+        return 1
+
     args = parse_args(argv)
     root = studio_root()
     programs = resolve_selection(args)
 
-    print(textwrap.fill(LINUX_NOTE if is_linux() else NONLINUX_NOTE, width=78))
+    print(textwrap.fill(LINUX_NOTE, width=78))
     print()
     print("Auswahl:")
     for key in sorted(programs):
         print(f"  • {PROGRAMS[key]['name']}")
 
-    bundle_only = bool(args.bundle_only) or not is_linux()
-    dest = args.dest or (default_bundle_dest() if bundle_only else None)
-
-    if bundle_only:
-        assert dest is not None
-        copy_bundle(root, dest, programs)
-        print_summary(programs, "bundle", dest)
-        if not is_linux():
-            print()
-            print(
-                "Hinweis: Zum vollständigen Installieren das Paket auf "
-                "Nobara/Fedora bringen und dort ./install.sh ausführen — "
-                "oder den Linux-Installer von GitHub Releases nutzen."
-            )
-        return 0
-
     status = run_linux_install(root, programs)
-    print_summary(programs, "install", None)
+    print_summary(programs)
     return status
 
 

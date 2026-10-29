@@ -18,8 +18,6 @@ rsync -a \
   --exclude '*.pyc' \
   --exclude '.venv' \
   --exclude 'venv' \
-  --exclude 'packaging/macos' \
-  --exclude 'packaging/windows' \
   --exclude 'packaging/linux' \
   "${ROOT}/" "${STAGE}/payload/"
 
