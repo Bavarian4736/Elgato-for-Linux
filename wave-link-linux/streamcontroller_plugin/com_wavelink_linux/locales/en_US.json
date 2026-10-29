@@ -1,0 +1,7 @@
+{
+    "plugin.name": "WaveLink",
+    "actions.channel-dial.name": "Channel Dial",
+    "actions.channel-dial.channel": "Channel",
+    "actions.channel-dial.mix": "Mix",
+    "actions.channel-dial.step": "Step per tick"
+}

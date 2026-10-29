@@ -1,0 +1,7 @@
+{
+    "plugin.name": "WaveLink",
+    "actions.channel-dial.name": "Spur-Drehregler",
+    "actions.channel-dial.channel": "Spur",
+    "actions.channel-dial.mix": "Mix",
+    "actions.channel-dial.step": "Schritt pro Tick"
+}

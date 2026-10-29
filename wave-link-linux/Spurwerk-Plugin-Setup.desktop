@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Nur StreamController-Erweiterung
+Comment=Installiert nur das Stream-Deck-Plugin, ohne den Mixer
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupNotify=true
+Icon=audio-speakers-symbolic
+Exec=/usr/bin/python3 -c "import os,pathlib,sys,urllib.parse; raw=sys.argv[1]; p=urllib.parse.unquote(urllib.parse.urlparse(raw).path) if raw.startswith('file:') else raw; folder=pathlib.Path(p).resolve().parent; os.chdir(folder); script=folder/'Spurwerk-Plugin-Setup'; os.execv(script, ['Spurwerk-Plugin-Setup'])" %k

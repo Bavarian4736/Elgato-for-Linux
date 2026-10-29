@@ -1,0 +1,16 @@
+{
+    "plugin": {
+        "description": "Controls WaveLink Linux (PipeWire mixer) from Stream Deck keys and Stream Deck + dials. WaveLink Linux must be running so the local API on port 24772 is available.",
+        "requirements": "WaveLink Linux running (wavelink-linux)."
+    },
+    "actions": {
+        "ChannelDial": {
+            "description": "Stream Deck + dial for a WaveLink channel. Turn = volume, press = mute toggle. Choose channel and Monitor/Stream mix in the action settings.",
+            "settings": {
+                "channel": "Channel key (system, music, browser, voice, game, sfx, aux, mic, or master).",
+                "mix": "monitor or stream",
+                "step": "Volume step per dial tick (0.01–0.25, default 0.05)."
+            }
+        }
+    }
+}

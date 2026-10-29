@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+exec python3 "$ROOT/capture-card/hd60s.py" "$@"

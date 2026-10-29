@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=HD60
+Comment=Bild und Ton der Elgato HD60 S
+Exec=/usr/local/bin/hd60s
+Icon=hd60s
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;
+Keywords=Elgato;Capture;HDMI;Discord;
+StartupNotify=true

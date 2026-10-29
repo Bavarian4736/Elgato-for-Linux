@@ -1,0 +1,16 @@
+{
+    "plugin": {
+        "description": "Control Spotify from Stream Deck: playback, like, album/artist.",
+        "requirements": "Spotify Premium recommended; Redirect URI http://127.0.0.1:41837/callback in Dashboard."
+    },
+    "actions": {
+        "PlayPause": { "description": "Toggle play/pause." },
+        "NextSong": { "description": "Skip to next track." },
+        "PreviousSong": { "description": "Go to previous track." },
+        "Shuffle": { "description": "Toggle shuffle." },
+        "Favourite": { "description": "Like / unlike current track (Library or StreamDeck Likes playlist)." },
+        "Repeat": { "description": "Cycle repeat: off → all → one." },
+        "PlayAlbum": { "description": "Play an album by name, Spotify URL or URI (configure on the key)." },
+        "PlayArtist": { "description": "Play an artist by name, Spotify URL or URI (configure on the key)." }
+    }
+}

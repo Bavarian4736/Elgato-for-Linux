@@ -1,0 +1,17 @@
+{
+    "version": "2.2.0",
+    "id": "com_wavelink_linux_bar",
+    "name": "WaveLink Bar \u2014 Bayern",
+    "images": "images/",
+    "thumbnail": "store/thumbnail.png",
+    "descriptions": {
+        "en_US": "Premium Bavarian Stream Deck + touch bar wallpapers at 3200\u00d7400: lozenges, Alps, beer steins, lederhosen, pretzels, Oktoberfest & more.",
+        "de_DE": "Hochwertige bayrische Stream-Deck+-Touchbar-Hintergr\u00fcnde in 3200\u00d7400: Rauten, Alpen, Masskr\u00fcge, Lederhose, Brezeln, Oktoberfest und mehr."
+    },
+    "short-descriptions": {
+        "en_US": "Bavarian SD+ bar (clich\u00e9s included)",
+        "de_DE": "Bayrische SD+-Leiste (inkl. Klischees)"
+    },
+    "description": "Hochwertige bayrische Stream-Deck+-Touchbar-Hintergr\u00fcnde in 3200\u00d7400: Rauten, Alpen, Masskr\u00fcge, Lederhose, Brezeln, Oktoberfest und mehr.",
+    "short-description": "Bayrische SD+-Leiste (inkl. Klischees)"
+}

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+*.ko
+*.o
+*.mod
+*.mod.c
+Module.symvers
+modules.order
+.module-common.o

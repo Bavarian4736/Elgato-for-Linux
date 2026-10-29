@@ -1,0 +1,11 @@
+hd60s-linux-driver/
+__pycache__/
+*.pyc
+
+*.ko
+*.o
+*.mod
+*.mod.c
+Module.symvers
+modules.order
+.module-common.o
