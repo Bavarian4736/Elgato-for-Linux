@@ -15,8 +15,8 @@ Die Karte ist kein normales USB-Videogerät. `install.sh` installiert deshalb de
 Im Elgato-for-Linux-Monorepo:
 
 ```bash
-git clone https://github.com/Bavarian4736/studio.git
-cd studio
+git clone https://github.com/Bavarian4736/Elgato-for-Linux.git
+cd Elgato-for-Linux
 ./install.sh
 ```
 
