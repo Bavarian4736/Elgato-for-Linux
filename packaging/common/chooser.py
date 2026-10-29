@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Studio-Installer (Linux): HD60 und/oder Wave Link Linux installieren oder entfernen."""
+"""Elgato for Linux — Installer: HD60 und/oder Wave Link Linux installieren oder entfernen."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import sys
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
+
+PRODUCT = "Elgato for Linux"
 
 PROGRAMS = {
     "hd60": {
@@ -33,7 +35,7 @@ class Selection:
     programs: set[str]
 
 
-def studio_root() -> Path:
+def project_root() -> Path:
     """Repo- oder Payload-Wurzel: packaging/common/chooser.py → zwei Ebenen hoch."""
     here = Path(__file__).resolve()
     root = here.parents[2]
@@ -47,7 +49,7 @@ def studio_root() -> Path:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Studio: HD60 und/oder Wave Link Linux installieren oder deinstallieren.",
+        description=f"{PRODUCT}: HD60 und/oder Wave Link Linux installieren oder deinstallieren.",
     )
     p.add_argument("--hd60", action="store_true", help="HD60 einbeziehen")
     p.add_argument("--wavelink", action="store_true", help="Wave Link Linux einbeziehen")
@@ -79,7 +81,7 @@ def choose_interactive() -> Selection:
 
 def _choose_cli() -> Selection:
     print()
-    print("Studio — Installation oder Deinstallation?")
+    print(f"{PRODUCT} — Installation oder Deinstallation?")
     print("  System: Linux (Nobara/Fedora)")
     print()
     print("  I) Installieren")
@@ -128,14 +130,14 @@ def _choose_tk() -> Selection:
     result: dict[str, Selection | None] = {"value": None}
 
     root = tk.Tk()
-    root.title("Studio Installer")
+    root.title(f"{PRODUCT} Installer")
     root.minsize(440, 340)
     root.resizable(False, False)
 
     frame = ttk.Frame(root, padding=16)
     frame.grid(sticky="nsew")
 
-    ttk.Label(frame, text="Studio", font=("", 16, "bold")).grid(
+    ttk.Label(frame, text=PRODUCT, font=("", 16, "bold")).grid(
         row=0, column=0, sticky="w"
     )
     ttk.Label(
@@ -177,7 +179,7 @@ def _choose_tk() -> Selection:
         chosen = {k for k, v in vars_map.items() if v.get()}
         if not chosen:
             messagebox.showwarning(
-                "Studio",
+                PRODUCT,
                 "Bitte mindestens ein Programm auswählen.",
             )
             return
@@ -227,7 +229,6 @@ def resolve_selection(args: argparse.Namespace) -> Selection:
         )
         sys.exit(2)
 
-    # Nur --uninstall ohne Programmauswahl → interaktiv, Aktion fest auf uninstall
     if args.uninstall or args.install:
         sel = choose_interactive()
         if args.uninstall:
@@ -309,13 +310,13 @@ def print_summary(sel: Selection, status: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     if not sys.platform.startswith("linux"):
         print(
-            "Dieser Installer ist nur für Linux (Nobara/Fedora).",
+            f"Dieser Installer ({PRODUCT}) ist nur für Linux (Nobara/Fedora).",
             file=sys.stderr,
         )
         return 1
 
     args = parse_args(argv)
-    root = studio_root()
+    root = project_root()
     sel = resolve_selection(args)
 
     print(textwrap.fill(LINUX_NOTE, width=78))

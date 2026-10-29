@@ -1,6 +1,6 @@
-# Studio
+# Elgato for Linux
 
-Nobara-Werkzeuge für Aufnahme und Ton, in einem Verzeichnis.
+Nobara-Werkzeuge für Aufnahme und Ton (Elgato HD60 S und Wave Link), in einem Verzeichnis.
 
 | Ordner | Inhalt |
 | --- | --- |
@@ -16,16 +16,18 @@ Die älteren Einzelrepos bleiben bestehen und werden von diesem Repo nicht erset
 
 Linux-Installer für Nobara/Fedora — beim Start **HD60**, **Wave Link** oder **beides** wählen:
 
-➡️ **[Studio-Linux-Installer.sh](https://github.com/Bavarian4736/studio/releases/latest)** (Releases)
+➡️ **[Elgato-for-Linux-Installer.sh](https://github.com/Bavarian4736/studio/releases/latest)** (Releases)
 
 ```bash
-chmod +x Studio-Linux-Installer.sh
-./Studio-Linux-Installer.sh
+chmod +x Elgato-for-Linux-Installer.sh
+./Elgato-for-Linux-Installer.sh
 ```
 
 Im Installer zuerst **Installieren** oder **Deinstallieren**, danach HD60 / Wave Link / beides wählen.
 
 Details und Release-Workflow: `packaging/README.md`.
+
+> **Repo-Name:** Auf GitHub heißt das Repo aktuell noch `studio`. Gewünschter Slug: **`elgato-for-linux`** (Settings → General → Repository name). Nach dem Umbenennen leitet GitHub die alten URLs weiter.
 
 ## Beides installieren (aus dem Repo)
 
@@ -42,7 +44,7 @@ cd studio
 Über denselben Installer oder aus dem Repo:
 
 ```bash
-./Studio-Linux-Installer.sh
+./Elgato-for-Linux-Installer.sh
 # → Deinstallieren wählen
 
 # oder aus dem Checkout:
@@ -89,12 +91,12 @@ Secure Boot kann das Laden von `hd60s` blockieren. Der Installer sagt dann, wie 
 ## Verzeichnis
 
 ```
-studio/
+studio/   # nach Repo-Umbenennung: elgato-for-linux/
 ├── install.sh
 ├── hd60s
 ├── wavelink-linux
 ├── README.md
-├── packaging/          # OS-Installer + Release-Builds
+├── packaging/          # Linux-Installer + Release-Builds
 ├── capture-card/
 │   ├── hd60s.py
 │   ├── install.sh

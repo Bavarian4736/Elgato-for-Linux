@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Baut Studio-Linux-Installer.sh — selbstentpackendes Archiv mit Auswahl-Installer.
+# Baut Elgato-for-Linux-Installer.sh — selbstentpackendes Archiv mit Auswahl-Installer.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT_DIR="${1:-"${ROOT}/dist"}"
-VERSION="${STUDIO_VERSION:-dev}"
+VERSION="${INSTALLER_VERSION:-${STUDIO_VERSION:-dev}}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 
@@ -42,20 +42,19 @@ chmod +x "${STAGE}/payload/install.sh" \
 ARCHIVE="${STAGE}/payload.tar.gz"
 tar -C "${STAGE}" -czf "${ARCHIVE}" payload
 
-MARKER="__STUDIO_ARCHIVE_BELOW__"
-OUT="${OUT_DIR}/Studio-Linux-Installer.sh"
+MARKER="__ELGATO_FOR_LINUX_ARCHIVE_BELOW__"
+OUT="${OUT_DIR}/Elgato-for-Linux-Installer.sh"
 
-# Stub: Build-Zeit-Variablen expandieren, Laufzeit-Variablen escaped lassen.
 cat > "${OUT}" << STUB
 #!/usr/bin/env bash
-# Studio Linux Installer (${VERSION})
+# Elgato for Linux Installer (${VERSION})
 # Entpackt das Paket und startet die Programmauswahl (HD60 / Wave Link / beides).
 set -euo pipefail
 
 VERSION="${VERSION}"
 MARKER="${MARKER}"
 
-echo "Studio Linux Installer \${VERSION}"
+echo "Elgato for Linux Installer \${VERSION}"
 echo "Entpacke Paket…"
 
 EXTRACT="\$(mktemp -d)"
@@ -75,7 +74,6 @@ bash "\${PAYLOAD}/run-installer.sh" "\$@"
 exit \$?
 STUB
 
-# exit beendet die Shell, bevor Markierung/Binary als Code gelesen werden.
 printf '%s\n' "${MARKER}" >> "${OUT}"
 cat "${ARCHIVE}" >> "${OUT}"
 

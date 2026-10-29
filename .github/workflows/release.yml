@@ -42,11 +42,11 @@ jobs:
 
       - name: Linux-Installer bauen
         env:
-          STUDIO_VERSION: ${{ steps.ver.outputs.version }}
+          INSTALLER_VERSION: ${{ steps.ver.outputs.version }}
         run: |
           chmod +x packaging/linux/build-installer.sh
           ./packaging/linux/build-installer.sh dist
-          ls -lh dist/Studio-Linux-Installer.sh
+          ls -lh dist/Elgato-for-Linux-Installer.sh
 
       - name: Release erzeugen / aktualisieren
         env:
@@ -57,30 +57,30 @@ jobs:
           set -euo pipefail
           NOTES="$(mktemp)"
           {
-            echo "## Studio ${VERSION}"
+            echo "## Elgato for Linux ${VERSION}"
             echo
-            echo "Linux-Installer für Nobara/Fedora. Beim Start **HD60**, **Wave Link Linux (Spurwerk)** oder **beides** wählen."
+            echo "Linux-Installer für Nobara/Fedora. Beim Start **Installieren** oder **Deinstallieren**, dann **HD60**, **Wave Link Linux (Spurwerk)** oder **beides** wählen."
             echo
-            echo "**Download:** \`Studio-Linux-Installer.sh\`"
+            echo "**Download:** \`Elgato-for-Linux-Installer.sh\`"
             echo
             echo '```bash'
-            echo "chmod +x Studio-Linux-Installer.sh"
-            echo "./Studio-Linux-Installer.sh"
+            echo "chmod +x Elgato-for-Linux-Installer.sh"
+            echo "./Elgato-for-Linux-Installer.sh"
             echo '```'
           } > "$NOTES"
 
           if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG" -m "Studio $VERSION"
+            git tag -a "$TAG" -m "Elgato for Linux $VERSION"
             git push origin "$TAG"
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/Studio-Linux-Installer.sh --clobber
-            gh release edit "$TAG" --notes-file "$NOTES" --title "Studio ${VERSION}"
+            gh release upload "$TAG" dist/Elgato-for-Linux-Installer.sh --clobber
+            gh release edit "$TAG" --notes-file "$NOTES" --title "Elgato for Linux ${VERSION}"
           else
-            gh release create "$TAG" dist/Studio-Linux-Installer.sh \
-              --title "Studio ${VERSION}" \
+            gh release create "$TAG" dist/Elgato-for-Linux-Installer.sh \
+              --title "Elgato for Linux ${VERSION}" \
               --notes-file "$NOTES"
           fi

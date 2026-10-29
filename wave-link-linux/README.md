@@ -12,7 +12,7 @@ Wave-Link-ähnlicher Audio-Mixer für **Nobara / Fedora (GNOME)** mit **PipeWire
 
 ## Installation
 
-Im Studio-Monorepo richtet `./install.sh` im Hauptverzeichnis HD60 und Wave Link zusammen ein. Nur dieser Mixer, in diesem Ordner:
+Im Elgato-for-Linux-Monorepo richtet `./install.sh` im Hauptverzeichnis HD60 und Wave Link zusammen ein. Nur dieser Mixer, in diesem Ordner:
 
 Doppelklick auf **Spurwerk-Setup.desktop**. Im Fenster lässt sich die StreamController-Erweiterung an- oder abwählen. Über „Nur die Erweiterung installieren“ kommt man zur Einrichtung ohne den Mixer.
 
@@ -81,4 +81,4 @@ Wenn Easy Effects dein Standard-Sink ist, laufen neue Apps zuerst dort. Ziehe si
 
 Entfernt Programmordner, Starter, Desktop-Eintrag, PipeWire-Konfiguration und (falls vorhanden) die StreamController-Plugins. PipeWire wird danach neu gestartet.
 
-Über den Studio-Installer: Deinstallieren wählen, oder `./install.sh --uninstall --wavelink` im Monorepo.
+Über den Elgato-for-Linux-Installer: Deinstallieren wählen, oder `./install.sh --uninstall --wavelink` im Monorepo.
