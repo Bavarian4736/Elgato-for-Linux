@@ -4,15 +4,28 @@ Nobara-Werkzeuge für Aufnahme und Ton, in einem Verzeichnis.
 
 | Ordner | Inhalt |
 | --- | --- |
-| `capture-card/` | HD60: Vorschau für die Elgato Game Capture HD60 S, plus Installer für den Kernel-Treiber und v4l2loopback |
-| `wave-link-linux/` | Wave Link Linux (Spurwerk): PipeWire-Mixer mit Monitor- und Stream-Mix |
+| `capture-card/` | **HD60**: Vorschau für die Elgato Game Capture HD60 S, plus Installer für den Kernel-Treiber und v4l2loopback |
+| `wave-link-linux/` | **Wave Link Linux (Spurwerk)**: PipeWire-Mixer mit Monitor- und Stream-Mix |
 
 Die älteren Einzelrepos bleiben bestehen und werden von diesem Repo nicht ersetzt:
 
 - [Bavarian4736/hd60s-nobara](https://github.com/Bavarian4736/hd60s-nobara)
 - [Bavarian4736/spurwerk](https://github.com/Bavarian4736/spurwerk)
 
-## Beides installieren
+## Download (GitHub Releases)
+
+Linux-Installer für Nobara/Fedora — beim Start **HD60**, **Wave Link** oder **beides** wählen:
+
+➡️ **[Studio-Linux-Installer.sh](https://github.com/Bavarian4736/studio/releases/latest)** (Releases)
+
+```bash
+chmod +x Studio-Linux-Installer.sh
+./Studio-Linux-Installer.sh
+```
+
+Details und Release-Workflow: `packaging/README.md`.
+
+## Beides installieren (aus dem Repo)
 
 ```bash
 git clone https://github.com/Bavarian4736/studio.git
@@ -20,7 +33,7 @@ cd studio
 ./install.sh
 ```
 
-`./install.sh` installiert nacheinander HD60 und Wave Link. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
+`./install.sh` installiert nacheinander HD60 und Wave Link. Mit Auswahlmenü: `./install.sh --choose`. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
 
 ## Starten
 
@@ -62,6 +75,7 @@ studio/
 ├── hd60s
 ├── wavelink-linux
 ├── README.md
+├── packaging/          # OS-Installer + Release-Builds
 ├── capture-card/
 │   ├── hd60s.py
 │   ├── install.sh

@@ -1,0 +1,86 @@
+name: Release Linux installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versions-Tag ohne führendes v (z. B. 1.0.0). Leer = Timestamp."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version bestimmen
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            V="${{ inputs.version }}"
+            if [[ -z "$V" ]]; then
+              V="0.0.0-ci.$(date -u +%Y%m%d%H%M%S)"
+            fi
+            echo "version=$V" >> "$GITHUB_OUTPUT"
+            echo "tag=v$V" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            V="${TAG#v}"
+            echo "version=$V" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Abhängigkeiten
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Linux-Installer bauen
+        env:
+          STUDIO_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          chmod +x packaging/linux/build-installer.sh
+          ./packaging/linux/build-installer.sh dist
+          ls -lh dist/Studio-Linux-Installer.sh
+
+      - name: Release erzeugen / aktualisieren
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          NOTES="$(mktemp)"
+          {
+            echo "## Studio ${VERSION}"
+            echo
+            echo "Linux-Installer für Nobara/Fedora. Beim Start **HD60**, **Wave Link Linux (Spurwerk)** oder **beides** wählen."
+            echo
+            echo "**Download:** \`Studio-Linux-Installer.sh\`"
+            echo
+            echo '```bash'
+            echo "chmod +x Studio-Linux-Installer.sh"
+            echo "./Studio-Linux-Installer.sh"
+            echo '```'
+          } > "$NOTES"
+
+          if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Studio $VERSION"
+            git push origin "$TAG"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/Studio-Linux-Installer.sh --clobber
+            gh release edit "$TAG" --notes-file "$NOTES" --title "Studio ${VERSION}"
+          else
+            gh release create "$TAG" dist/Studio-Linux-Installer.sh \
+              --title "Studio ${VERSION}" \
+              --notes-file "$NOTES"
+          fi
