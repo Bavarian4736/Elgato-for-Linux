@@ -162,8 +162,70 @@ def install_app(include_plugin: bool, log) -> None:
     log("Installation ist fertig.")
 
 
+def uninstall_app(log, remove_plugin: bool = True) -> None:
+    """Entfernt Mixer, Desktop-Eintrag, PipeWire-Konfiguration und optional Plugins."""
+    import shutil
+
+    pw_conf = Path.home() / ".config/pipewire/pipewire.conf.d/99-wavelink.conf"
+    desktop = DESKTOP_DIR / "com.wavelink.linux.desktop"
+    setup_desktops = [
+        DESKTOP_DIR / "Spurwerk-Setup.desktop",
+        DESKTOP_DIR / "Spurwerk-Plugin-Setup.desktop",
+        Path.home() / "Desktop" / "Spurwerk-Setup.desktop",
+        Path.home() / "Desktop" / "Spurwerk-Plugin-Setup.desktop",
+    ]
+
+    if APP_DIR.is_dir():
+        log(f"Entferne {APP_DIR}…")
+        shutil.rmtree(APP_DIR)
+    else:
+        log("Programmordner war nicht vorhanden.")
+
+    if BIN.is_file() or BIN.is_symlink():
+        log(f"Entferne {BIN}…")
+        BIN.unlink()
+
+    if desktop.is_file():
+        log(f"Entferne {desktop}…")
+        desktop.unlink()
+    for path in setup_desktops:
+        if path.is_file():
+            path.unlink(missing_ok=True)
+
+    if pw_conf.is_file():
+        log(f"Entferne {pw_conf}…")
+        pw_conf.unlink()
+        subprocess.run(
+            [
+                "systemctl",
+                "--user",
+                "restart",
+                "wireplumber",
+                "pipewire",
+                "pipewire-pulse",
+            ],
+            check=False,
+            capture_output=True,
+        )
+
+    if remove_plugin and SC_PLUGINS.is_dir():
+        for name in ("com_wavelink_linux", "Spotify"):
+            plugin = SC_PLUGINS / name
+            if plugin.is_dir():
+                log(f"Entferne StreamController-Plugin {name}…")
+                shutil.rmtree(plugin)
+
+    if DESKTOP_DIR.is_dir():
+        subprocess.run(
+            ["update-desktop-database", str(DESKTOP_DIR)],
+            check=False,
+            capture_output=True,
+        )
+    log("Wave Link Linux ist entfernt.")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Spurwerk installieren")
+    parser = argparse.ArgumentParser(description="Spurwerk installieren oder entfernen")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--no-plugin",
@@ -175,13 +237,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Nur die StreamController-Erweiterung installieren",
     )
+    group.add_argument(
+        "--uninstall",
+        action="store_true",
+        help="Wave Link Linux und zugehörige Dateien entfernen",
+    )
     args = parser.parse_args(argv)
 
     def log(message: str) -> None:
         print(message, flush=True)
 
     try:
-        if args.plugin_only:
+        if args.uninstall:
+            uninstall_app(log)
+        elif args.plugin_only:
             install_plugins(log)
             print("StreamController danach neu starten.")
         elif args.no_plugin:

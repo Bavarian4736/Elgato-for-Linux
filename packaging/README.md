@@ -1,6 +1,6 @@
 # Packaging — Studio Linux-Installer
 
-Baut **`Studio-Linux-Installer.sh`** für GitHub Releases. Beim Start HD60 und/oder Wave Link Linux wählen.
+Baut **`Studio-Linux-Installer.sh`** für GitHub Releases. Beim Start **Installieren** oder **Deinstallieren**, danach HD60 und/oder Wave Link Linux wählen.
 
 Beide Programme sind für **Nobara/Fedora (Linux)**.
 
