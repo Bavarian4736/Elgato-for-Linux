@@ -12,3 +12,4 @@ venv/
 Module.symvers
 modules.order
 .module-common.o
+dist/

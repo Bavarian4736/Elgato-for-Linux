@@ -4,15 +4,39 @@ Nobara-Werkzeuge für Aufnahme und Ton, in einem Verzeichnis.
 
 | Ordner | Inhalt |
 | --- | --- |
-| `capture-card/` | HD60: Vorschau für die Elgato Game Capture HD60 S, plus Installer für den Kernel-Treiber und v4l2loopback |
-| `wave-link-linux/` | Wave Link Linux (Spurwerk): PipeWire-Mixer mit Monitor- und Stream-Mix |
+| `capture-card/` | **HD60**: Vorschau für die Elgato Game Capture HD60 S, plus Installer für den Kernel-Treiber und v4l2loopback |
+| `wave-link-linux/` | **Wave Link Linux (Spurwerk)**: PipeWire-Mixer mit Monitor- und Stream-Mix |
 
 Die älteren Einzelrepos bleiben bestehen und werden von diesem Repo nicht ersetzt:
 
 - [Bavarian4736/hd60s-nobara](https://github.com/Bavarian4736/hd60s-nobara)
 - [Bavarian4736/spurwerk](https://github.com/Bavarian4736/spurwerk)
 
-## Beides installieren
+## Download (GitHub Releases)
+
+Fertige Installer — **ein Download pro Betriebssystem**. Beim Start wählen, ob HD60, Wave Link oder beides eingerichtet werden soll:
+
+| OS | Datei |
+| --- | --- |
+| Linux | [Studio-Linux-Installer.sh](https://github.com/Bavarian4736/studio/releases/latest) |
+| macOS | [Studio-macOS-Installer.zip](https://github.com/Bavarian4736/studio/releases/latest) |
+| Windows | [Studio-Windows-Setup.exe](https://github.com/Bavarian4736/studio/releases/latest) |
+
+➡️ Alle Assets: **[Releases](https://github.com/Bavarian4736/studio/releases/latest)**
+
+Linux (empfohlen für die echte Installation auf Nobara/Fedora):
+
+```bash
+chmod +x Studio-Linux-Installer.sh
+./Studio-Linux-Installer.sh
+```
+
+macOS: ZIP entpacken, Rechtsklick auf `Studio-Installer.command` → Öffnen.  
+Windows: `Studio-Windows-Setup.exe` starten (unsigned — SmartScreen ggf. „Trotzdem ausführen“).
+
+**Hinweis:** Beide Programme laufen vollständig unter Linux. macOS-/Windows-Installer legen ein Dateipaket ab (z. B. zum Übertragen auf Linux oder in eine VM). Details und Release-Workflow: `packaging/README.md`.
+
+## Beides installieren (aus dem Repo)
 
 ```bash
 git clone https://github.com/Bavarian4736/studio.git
@@ -20,7 +44,7 @@ cd studio
 ./install.sh
 ```
 
-`./install.sh` installiert nacheinander HD60 und Wave Link. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
+`./install.sh` installiert nacheinander HD60 und Wave Link. Mit Auswahlmenü: `./install.sh --choose`. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
 
 ## Starten
 
@@ -62,6 +86,7 @@ studio/
 ├── hd60s
 ├── wavelink-linux
 ├── README.md
+├── packaging/          # OS-Installer + Release-Builds
 ├── capture-card/
 │   ├── hd60s.py
 │   ├── install.sh
