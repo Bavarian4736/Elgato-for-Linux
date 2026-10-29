@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installiert HD60 und/oder Wave Link Linux auf Nobara oder Fedora.
-# Ohne Argumente: beides. Mit --choose: interaktive Auswahl.
+# Installiert oder entfernt HD60 und/oder Wave Link Linux auf Nobara oder Fedora.
+# Ohne Argumente: beides installieren. Mit --choose: interaktive Auswahl.
 # HD60 holt sich Root-Rechte selbst über pkexec.
 set -euo pipefail
 
@@ -11,19 +11,30 @@ if [[ "${1:-}" == "--choose" || "${1:-}" == "--select" ]]; then
   exec python3 "${ROOT}/packaging/common/chooser.py" "$@"
 fi
 
+if [[ "${1:-}" == "--uninstall" ]]; then
+  shift
+  if [[ $# -eq 0 ]]; then
+    exec python3 "${ROOT}/packaging/common/chooser.py" --uninstall --both
+  fi
+  exec python3 "${ROOT}/packaging/common/chooser.py" --uninstall "$@"
+fi
+
 if [[ "${1:-}" == "--hd60" || "${1:-}" == "--wavelink" || "${1:-}" == "--both" ]]; then
   exec python3 "${ROOT}/packaging/common/chooser.py" "$@"
 fi
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   cat << 'EOF'
-Usage: ./install.sh [--choose | --both | --hd60 | --wavelink]
+Usage: ./install.sh [--choose | --both | --hd60 | --wavelink | --uninstall …]
 
-  (ohne Flags)  beide Programme nacheinander
-  --choose      interaktive Auswahl (CLI oder GUI)
-  --both        beide Programme
-  --hd60        nur HD60
-  --wavelink    nur Wave Link Linux
+  (ohne Flags)     beide Programme installieren
+  --choose         interaktive Auswahl (Installieren oder Deinstallieren)
+  --both           beide Programme installieren
+  --hd60           nur HD60 installieren
+  --wavelink       nur Wave Link Linux installieren
+  --uninstall      beide deinstallieren
+  --uninstall --hd60 | --wavelink | --both
+                   ausgewählte Programme deinstallieren
 EOF
   exit 0
 fi
@@ -50,4 +61,7 @@ Beides ist installiert.
 
 Fehlen der HD60-Treiber oder die virtuelle Kamera, holt hd60s sie über pkexec nach.
 Fehlt die PipeWire-Konfiguration, legt Wave Link sie beim Start an.
+
+Deinstallation:  ./install.sh --uninstall
+                 oder ./install.sh --choose  (dort „Deinstallieren“)
 EOF

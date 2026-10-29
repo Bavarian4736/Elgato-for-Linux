@@ -23,6 +23,8 @@ chmod +x Studio-Linux-Installer.sh
 ./Studio-Linux-Installer.sh
 ```
 
+Im Installer zuerst **Installieren** oder **Deinstallieren**, danach HD60 / Wave Link / beides wählen.
+
 Details und Release-Workflow: `packaging/README.md`.
 
 ## Beides installieren (aus dem Repo)
@@ -33,7 +35,24 @@ cd studio
 ./install.sh
 ```
 
-`./install.sh` installiert nacheinander HD60 und Wave Link. Mit Auswahlmenü: `./install.sh --choose`. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
+`./install.sh` installiert nacheinander HD60 und Wave Link. Mit Auswahlmenü (inkl. Deinstallation): `./install.sh --choose`. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
+
+## Deinstallation
+
+Über denselben Installer oder aus dem Repo:
+
+```bash
+./Studio-Linux-Installer.sh
+# → Deinstallieren wählen
+
+# oder aus dem Checkout:
+./install.sh --uninstall              # beides
+./install.sh --uninstall --hd60       # nur HD60
+./install.sh --uninstall --wavelink   # nur Wave Link
+./install.sh --choose                 # interaktiv
+```
+
+Einzeln: `./capture-card/install.sh --uninstall` bzw. `./wave-link-linux/install.sh --uninstall`.
 
 ## Starten
 

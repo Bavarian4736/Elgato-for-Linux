@@ -76,9 +76,9 @@ Wenn Easy Effects dein Standard-Sink ist, laufen neue Apps zuerst dort. Ziehe si
 ## Deinstallation
 
 ```bash
-rm -rf ~/.local/share/wavelink-linux
-rm -f ~/.local/bin/wavelink-linux
-rm -f ~/.local/share/applications/com.wavelink.linux.desktop
-rm -f ~/.config/pipewire/pipewire.conf.d/99-wavelink.conf
-systemctl --user restart wireplumber pipewire pipewire-pulse
+./install.sh --uninstall
 ```
+
+Entfernt Programmordner, Starter, Desktop-Eintrag, PipeWire-Konfiguration und (falls vorhanden) die StreamController-Plugins. PipeWire wird danach neu gestartet.
+
+Über den Studio-Installer: Deinstallieren wählen, oder `./install.sh --uninstall --wavelink` im Monorepo.
