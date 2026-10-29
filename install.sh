@@ -1,7 +1,7 @@
 #!/bin/bash
-# Installiert oder entfernt HD60 und/oder Wave Link Linux auf Nobara oder Fedora.
-# Ohne Argumente: beides installieren. Mit --choose: interaktive Auswahl.
-# HD60 holt sich Root-Rechte selbst über pkexec.
+# Elgato for Linux — installiert oder entfernt HD60 und/oder Wave Link Linux
+# auf Nobara oder Fedora. Ohne Argumente: beides installieren.
+# Mit --choose: interaktive Auswahl. HD60 holt Root über pkexec.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"

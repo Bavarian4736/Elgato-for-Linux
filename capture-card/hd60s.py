@@ -317,7 +317,7 @@ class Hd60Window(Adw.ApplicationWindow):
         dialog.set_developer_name("Bavarian4736")
         dialog.set_version("1.0.0")
         dialog.set_comments("Bild und Ton der Elgato Game Capture HD60 S, ohne OBS.")
-        dialog.set_website("https://github.com/Bavarian4736/studio")
+        dialog.set_website("https://github.com/Bavarian4736/elgato-for-linux")
         dialog.set_license_type(Gtk.License.MIT_X11)
         dialog.present(self)
 
