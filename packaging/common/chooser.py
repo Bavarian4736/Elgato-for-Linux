@@ -329,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         status = run_linux_uninstall(root, sel.programs)
     else:
         status = run_linux_install(root, sel.programs)
-    print_summary(sel)
+    print_summary(sel, status)
     return status
 
 
