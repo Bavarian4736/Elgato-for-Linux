@@ -14,3 +14,4 @@
 
 ### Repo
 - HD60 und Wave Link Linux werden nur noch in Elgato for Linux gepflegt; Verweise auf die alten Einzelrepos entfernt.
+- Die ältere HD60-Historie mit den Releases HD60 1.0.0 und 1.1.0 liegt im privaten Archiv [hd60s-archive](https://github.com/Bavarian4736/hd60s-archive).
