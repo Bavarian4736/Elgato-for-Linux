@@ -1,4 +1,5 @@
 hd60s-linux-driver/
+packaging/*.rpm
 __pycache__/
 *.pyc
 

@@ -30,23 +30,12 @@ driver_version() {
 }
 
 drivers_ready() {
-  [[ -d /sys/module/hd60s ]] || return 1
-  [[ -d /sys/module/v4l2loopback ]] || return 1
-  [[ -r /sys/class/video4linux/video10/name ]] || return 1
-  [[ "$(tr -d '[:space:]' < /sys/class/video4linux/video10/name)" == "HD60" ]]
+  [[ -d /sys/module/hd60s ]]
 }
 
 try_load_installed() {
-  [[ -f "${LOOPBACK_CONF}" ]] || return 1
   modinfo hd60s >/dev/null 2>&1 || return 1
-  modinfo v4l2loopback >/dev/null 2>&1 || return 1
-  if ! drivers_ready; then
-    modprobe -r v4l2loopback 2>/dev/null || true
-    modprobe v4l2loopback || return 1
-    if [[ ! -d /sys/module/hd60s ]]; then
-      modprobe hd60s || return 1
-    fi
-  fi
+  drivers_ready || modprobe hd60s || return 1
   drivers_ready
 }
 
@@ -70,7 +59,7 @@ uninstall_driver() {
     /usr/local/bin/hd60s \
     /usr/local/share/applications/hd60s.desktop \
     /usr/local/share/icons/hicolor/scalable/apps/hd60s.svg
-  echo "HD60, Treiber und virtuelle Kamera sind entfernt."
+  echo "HD60 und Treiber sind entfernt."
 }
 
 ENSURE=0
@@ -99,29 +88,27 @@ fi
 
 if [[ "${ENSURE}" -eq 1 ]]; then
   if drivers_ready || try_load_installed; then
-    echo "Kernel-Treiber und virtuelle Kamera sind bereit."
+    echo "Kernel-Treiber ist bereit."
     exit 0
   fi
-  log "Kernel-Treiber oder v4l2loopback fehlt und wird installiert"
+  log "Kernel-Treiber fehlt und wird installiert"
 fi
 
 log "Pakete installieren"
 if [[ ! -d "/lib/modules/${KVER}/build" ]]; then
   dnf install -y "kernel-devel-uname-r = ${KVER}"
 fi
-dnf install -y git dkms gcc make zstd v4l-utils akmod-v4l2loopback \
+dnf install -y git dkms gcc make zstd v4l-utils \
   python3 python3-gobject gtk4 libadwaita \
   gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good \
   gstreamer1-plugin-gtk4 pipewire-gstreamer
 
-log "Virtuelle Kamera bauen"
-akmods --force --kernels "${KVER}"
-cat > "${LOOPBACK_CONF}" << 'EOF'
-options v4l2loopback devices=1 video_nr=10 card_label="HD60" exclusive_caps=1
-EOF
-rm -f /etc/modprobe.d/v4l2loopback-obs.conf
-modprobe -r v4l2loopback 2>/dev/null || true
-modprobe v4l2loopback
+# Früher gab es eine eigene virtuelle Kamera nur für Discord.
+# Die Karte selbst ist die Quelle, für Discord wie für jedes andere Programm.
+rm -f "${LOOPBACK_CONF}" /etc/modprobe.d/v4l2loopback-obs.conf
+if lsmod | grep -q '^v4l2loopback '; then
+  modprobe -r v4l2loopback 2>/dev/null || true
+fi
 
 log "HD60-S-Treiber holen (${DRIVER_COMMIT})"
 rm -rf "${SRC}"
@@ -220,12 +207,11 @@ Fertig. HD60 starten:
 oder im Anwendungsmenü „HD60“ öffnen. Das Fenster zeigt Bild und Ton.
 Es muss offen bleiben, sonst bleibt die Karte stumm.
 
-Fehlen der Kernel-Treiber oder die virtuelle Kamera später, installiert
-hd60s beides über pkexec nach.
+Fehlt der Kernel-Treiber später, installiert hd60s ihn über pkexec nach.
 
-Discord, falls du das Bild weitergeben willst:
-  Im HD60-Fenster „Discord“ einschalten.
-  In Discord Kamera „HD60“ und Eingabegerät „HD60 S“ wählen.
+Discord und andere Programme nehmen das Eingabegerät
+„Game Capture HD60 S“. Das Bild überträgst du über das HD60-Fenster,
+genau wie bei jedem anderen Fenster.
 
 HDMI an die Karte hängen und sie an einem USB-3-Port lassen.
 EOF

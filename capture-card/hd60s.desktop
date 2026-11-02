@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=HD60
 Comment=Bild und Ton der Elgato HD60 S
-Exec=/usr/local/bin/hd60s
+Exec=hd60s
 Icon=hd60s
 Terminal=false
 Type=Application
