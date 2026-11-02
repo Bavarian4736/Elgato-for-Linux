@@ -34,8 +34,6 @@ In diesem Ordner:
 
 Das Skript fragt über pkexec nach dem Passwort. Danach liegt HD60 im Anwendungsmenü und unter `hd60s`. Startet man `hd60s`, solange der Kernel-Treiber oder die virtuelle Kamera fehlt, startet dieselbe Installation noch einmal.
 
-Das frühere Einzelrepo bleibt unter https://github.com/Bavarian4736/hd60s-nobara bestehen.
-
 ## Bedienung
 
 HD60 öffnen. Unten im Fenster:

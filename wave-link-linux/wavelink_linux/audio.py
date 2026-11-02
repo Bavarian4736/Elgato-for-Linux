@@ -892,7 +892,9 @@ class AudioEngine:
         self.settings.setdefault("ui", {})["sidebar_width"] = width
         app_config.save(self.settings)
 
-    def set_channel_volume(self, channel_key: str, mix: str, value: float) -> None:
+    def set_channel_volume(
+        self, channel_key: str, mix: str, value: float, *, notify: bool = True
+    ) -> None:
         value = max(0.0, min(self.MAX_VOLUME, float(value)))
         self.settings.setdefault("volumes", {})[self._vol_key(channel_key, mix)] = value
         app_config.save(self.settings)
@@ -903,8 +905,12 @@ class AudioEngine:
         except Exception:
             # Never let Pulse threading errors kill the API/UI thread
             pass
+        if notify:
+            self.notify()
 
-    def set_channel_mute(self, channel_key: str, mix: str, muted: bool) -> None:
+    def set_channel_mute(
+        self, channel_key: str, mix: str, muted: bool, *, notify: bool = True
+    ) -> None:
         self.settings.setdefault("mutes", {})[self._vol_key(channel_key, mix)] = muted
         app_config.save(self.settings)
 
@@ -928,11 +934,15 @@ class AudioEngine:
                         self.get_channel_volume(channel_key, mix),
                         False,
                     )
+            if notify:
+                self.notify()
             return
 
         self._apply_loopback_volume(
             channel_key, mix, self.get_channel_volume(channel_key, mix), muted
         )
+        if notify:
+            self.notify()
 
     def _find_loopback_input(self, loopback_name: str):
         needle = f"output.{loopback_name}"
@@ -988,7 +998,7 @@ class AudioEngine:
             except Exception:
                 pass
 
-    def set_master_volume(self, mix: str, value: float) -> None:
+    def set_master_volume(self, mix: str, value: float, *, notify: bool = True) -> None:
         value = max(0.0, min(self.MAX_VOLUME, float(value)))
         key = f"master:{mix}"
         self.settings.setdefault("volumes", {})[key] = value
@@ -1001,11 +1011,13 @@ class AudioEngine:
                 self.pulse.volume_set_all_chans(sink, 0.0 if muted else value)
             except Exception:
                 pass
+        if notify:
+            self.notify()
 
     def get_master_volume(self, mix: str) -> float:
         return float(self.settings.get("volumes", {}).get(f"master:{mix}", 1.0))
 
-    def set_master_mute(self, mix: str, muted: bool) -> None:
+    def set_master_mute(self, mix: str, muted: bool, *, notify: bool = True) -> None:
         self.settings.setdefault("mutes", {})[f"master:{mix}"] = muted
         app_config.save(self.settings)
         sink_name = MONITOR_SINK if mix == "monitor" else STREAM_SINK
@@ -1017,6 +1029,8 @@ class AudioEngine:
                     self.pulse.volume_set_all_chans(sink, self.get_master_volume(mix))
             except Exception:
                 pass
+        if notify:
+            self.notify()
 
     def get_master_mute(self, mix: str) -> bool:
         return bool(self.settings.get("mutes", {}).get(f"master:{mix}", False))

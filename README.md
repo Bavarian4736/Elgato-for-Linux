@@ -7,10 +7,7 @@ Nobara-Werkzeuge für Aufnahme und Ton (Elgato HD60 S und Wave Link), in einem V
 | `capture-card/` | **HD60**: Vorschau für die Elgato Game Capture HD60 S, plus Installer für den Kernel-Treiber und v4l2loopback |
 | `wave-link-linux/` | **Wave Link Linux (Spurwerk)**: PipeWire-Mixer mit Monitor- und Stream-Mix |
 
-Die älteren Einzelrepos bleiben bestehen und werden von diesem Repo nicht ersetzt:
-
-- [Bavarian4736/hd60s-nobara](https://github.com/Bavarian4736/hd60s-nobara)
-- [Bavarian4736/spurwerk](https://github.com/Bavarian4736/spurwerk)
+Beide Programme werden nur noch hier gepflegt.
 
 ## Download (GitHub Releases)
 

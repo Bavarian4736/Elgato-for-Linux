@@ -42,8 +42,6 @@ Ohne Installation direkt aus dem Ordner:
 
 `wavelink-linux` und `./run.sh` legen die PipeWire-Spuren ebenfalls an, falls die Konfiguration noch fehlt.
 
-Das frühere Einzelrepo bleibt unter https://github.com/Bavarian4736/spurwerk bestehen.
-
 ## Nutzung
 
 1. App starten — virtuelle Spuren und Loopbacks werden angelegt.

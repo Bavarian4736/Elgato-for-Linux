@@ -253,6 +253,7 @@ class ChannelStrip(Gtk.Box):
         self.append(mute_row)
 
         self._syncing_color = False
+        self._syncing_levels = False
         self._load_levels()
         self.mon_scale["adj"].connect("value-changed", self._on_mon_vol)
         self.str_scale["adj"].connect("value-changed", self._on_str_vol)
@@ -335,22 +336,50 @@ class ChannelStrip(Gtk.Box):
         return {"box": box, "adj": adj, "scale": scale}
 
     def _load_levels(self) -> None:
-        self.mon_scale["adj"].set_value(self.engine.get_channel_volume(self.channel_key, "monitor"))
-        self.str_scale["adj"].set_value(self.engine.get_channel_volume(self.channel_key, "stream"))
-        self.mon_mute.set_active(self.engine.get_channel_mute(self.channel_key, "monitor"))
-        self.str_mute.set_active(self.engine.get_channel_mute(self.channel_key, "stream"))
+        self._syncing_levels = True
+        try:
+            self.mon_scale["adj"].set_value(
+                self.engine.get_channel_volume(self.channel_key, "monitor")
+            )
+            self.str_scale["adj"].set_value(
+                self.engine.get_channel_volume(self.channel_key, "stream")
+            )
+            self.mon_mute.set_active(
+                self.engine.get_channel_mute(self.channel_key, "monitor")
+            )
+            self.str_mute.set_active(
+                self.engine.get_channel_mute(self.channel_key, "stream")
+            )
+        finally:
+            self._syncing_levels = False
 
     def _on_mon_vol(self, adj):
-        self.engine.set_channel_volume(self.channel_key, "monitor", adj.get_value())
+        if self._syncing_levels:
+            return
+        self.engine.set_channel_volume(
+            self.channel_key, "monitor", adj.get_value(), notify=False
+        )
 
     def _on_str_vol(self, adj):
-        self.engine.set_channel_volume(self.channel_key, "stream", adj.get_value())
+        if self._syncing_levels:
+            return
+        self.engine.set_channel_volume(
+            self.channel_key, "stream", adj.get_value(), notify=False
+        )
 
     def _on_mon_mute(self, btn):
-        self.engine.set_channel_mute(self.channel_key, "monitor", btn.get_active())
+        if self._syncing_levels:
+            return
+        self.engine.set_channel_mute(
+            self.channel_key, "monitor", btn.get_active(), notify=False
+        )
 
     def _on_str_mute(self, btn):
-        self.engine.set_channel_mute(self.channel_key, "stream", btn.get_active())
+        if self._syncing_levels:
+            return
+        self.engine.set_channel_mute(
+            self.channel_key, "stream", btn.get_active(), notify=False
+        )
 
     def _on_dropped(self, _zone, assign_key: str):
         if self.is_mic:
@@ -569,9 +598,11 @@ class WaveLinkWindow(Adw.ApplicationWindow):
 
         self.monitor_combo.connect("notify::selected", self._on_monitor_selected)
         self.mic_combo.connect("notify::selected", self._on_mic_selected)
-        self.master_mon.connect("value-changed", lambda s: self.engine.set_master_volume("monitor", s.get_value()))
-        self.master_str.connect("value-changed", lambda s: self.engine.set_master_volume("stream", s.get_value()))
+        self._syncing_masters = False
+        self.master_mon.connect("value-changed", self._on_master_mon)
+        self.master_str.connect("value-changed", self._on_master_str)
 
+        self.engine.subscribe(self._on_engine_changed)
         self.refresh()
         GLib.timeout_add_seconds(2, self._tick)
         GLib.timeout_add(50, self._meter_tick)
@@ -656,6 +687,34 @@ class WaveLinkWindow(Adw.ApplicationWindow):
         self.pool_zone.set_apps(pool_chips)
         for key, strip in self.strips.items():
             strip.refresh_apps(apps)
+
+    def _on_master_mon(self, scale):
+        if self._syncing_masters:
+            return
+        self.engine.set_master_volume("monitor", scale.get_value(), notify=False)
+
+    def _on_master_str(self, scale):
+        if self._syncing_masters:
+            return
+        self.engine.set_master_volume("stream", scale.get_value(), notify=False)
+
+    def _on_engine_changed(self) -> None:
+        # API/StreamController changes arrive off the GTK thread.
+        GLib.idle_add(self._sync_levels_from_engine)
+
+    def _sync_levels_from_engine(self) -> bool:
+        try:
+            for strip in self.strips.values():
+                strip._load_levels()
+            self._syncing_masters = True
+            try:
+                self.master_mon.set_value(self.engine.get_master_volume("monitor"))
+                self.master_str.set_value(self.engine.get_master_volume("stream"))
+            finally:
+                self._syncing_masters = False
+        except Exception:
+            pass
+        return False
 
     def _tick(self) -> bool:
         try:
