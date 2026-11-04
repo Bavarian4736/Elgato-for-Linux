@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.1 – 2026-11-04
+
+### Repo
+- Changelog ergänzt: Hinweis auf das private Archiv [hd60s-archive](https://github.com/Bavarian4736/hd60s-archive) mit den HD60-Releases 1.0.0 und 1.1.0.
+- Keine Änderungen am Programmcode; Installer und RPM-Paket entsprechen v1.3.0.
+
 ## v1.3.0 – 2026-11-02
 
 ### HD60 (capture-card) – Stand HD60 1.1.0
