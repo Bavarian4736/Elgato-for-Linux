@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.2 – 2026-11-05
+
+### Wave Link Linux (wave-link-linux)
+- StreamController ChannelDial: Stummschaltung reagiert jetzt auch auf Short- und Long-Touch am Drehregler (Touchscreen), nicht nur auf klassischen Dial-/Key-Down.
+
 ## v1.3.1 – 2026-11-04
 
 ### Repo

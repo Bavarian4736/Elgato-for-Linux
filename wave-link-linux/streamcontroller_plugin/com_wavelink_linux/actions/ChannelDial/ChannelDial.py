@@ -374,9 +374,16 @@ class ChannelDial(ActionBase):
     def event_callback(self, event: InputEvent, data: dict = None):
         # Accept enum or string form (page overrides / SC versions differ)
         name = str(event)
-        if event in (Input.Key.Events.DOWN, Input.Dial.Events.DOWN) or name in (
+        if event in (
+            Input.Key.Events.DOWN,
+            Input.Dial.Events.DOWN,
+            Input.Dial.Events.SHORT_TOUCH_PRESS,
+            Input.Dial.Events.LONG_TOUCH_PRESS,
+        ) or name in (
             "Key Down",
             "Dial Down",
+            "Dial Touchscreen Short Press",
+            "Dial Touchscreen Long Press",
         ):
             self._toggle_mute()
             return
