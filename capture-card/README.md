@@ -26,6 +26,12 @@ Oder nur HD60 aus diesem Ordner:
 ./capture-card/install.sh
 ```
 
+Nur das Programm austauschen, ohne den Treiber neu zu bauen oder Audio-Dienste neu zu starten:
+
+```bash
+./capture-card/install.sh --userspace
+```
+
 Das Skript fragt über pkexec nach dem Passwort. Danach liegt HD60 im Anwendungsmenü und unter `hd60s`. Fehlt der Kernel-Treiber später (zum Beispiel nach einem Kernel-Update), startet `hd60s` dieselbe Installation noch einmal.
 
 ### Als RPM

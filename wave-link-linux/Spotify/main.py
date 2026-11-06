@@ -21,6 +21,7 @@ from .actions.Repeat import Repeat
 from .actions.Shuffle import Shuffle
 from .utils.auth_window import WebAuthWindow
 from .utils.spotify_client import LEGACY_REDIRECT_URI, REDIRECT_URI, SpotifyClient
+from .version_info import read_plugin_version
 
 DEFAULT_CLIENT_ID = "bf750454b4ca41a1928e4efb3bc0683d"
 DEFAULT_CLIENT_SECRET = "64f93409a7cc433fa1a9f2214148c224"
@@ -75,7 +76,7 @@ class SpotifyPlugin(PluginBase):
         self.register(
             plugin_name="Spotify",
             github_repo="https://github.com/local/wavelink-spotify",
-            plugin_version="1.2.0",
+            plugin_version=read_plugin_version(),
             app_version="1.5.0-beta",
         )
 

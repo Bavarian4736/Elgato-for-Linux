@@ -35,6 +35,14 @@ class Selection:
     programs: set[str]
 
 
+def release_label() -> str:
+    """Erklärte Suite-Version. Leer, wenn das Paket keine VERSION-Datei hat."""
+    version_file = project_root() / "VERSION"
+    if not version_file.is_file():
+        return ""
+    return version_file.read_text(encoding="utf-8").strip()
+
+
 def project_root() -> Path:
     """Repo- oder Payload-Wurzel: packaging/common/chooser.py → zwei Ebenen hoch."""
     here = Path(__file__).resolve()
@@ -81,7 +89,9 @@ def choose_interactive() -> Selection:
 
 def _choose_cli() -> Selection:
     print()
-    print(f"{PRODUCT} — Installation oder Deinstallation?")
+    label = release_label()
+    title = f"{PRODUCT} {label}" if label else PRODUCT
+    print(f"{title} — Installation oder Deinstallation?")
     print("  System: Linux (Nobara/Fedora)")
     print()
     print("  I) Installieren")
@@ -130,7 +140,8 @@ def _choose_tk() -> Selection:
     result: dict[str, Selection | None] = {"value": None}
 
     root = tk.Tk()
-    root.title(f"{PRODUCT} Installer")
+    label = release_label()
+    root.title(f"{PRODUCT} {label}".strip())
     root.minsize(440, 340)
     root.resizable(False, False)
 
@@ -140,9 +151,10 @@ def _choose_tk() -> Selection:
     ttk.Label(frame, text=PRODUCT, font=("", 16, "bold")).grid(
         row=0, column=0, sticky="w"
     )
+    shown = f"Linux (Nobara/Fedora){' · ' + label if label else ''}"
     ttk.Label(
         frame,
-        text="Linux (Nobara/Fedora)\nAktion und Programme wählen:",
+        text=f"{shown}\nAktion und Programme wählen:",
         justify="left",
     ).grid(row=1, column=0, sticky="w", pady=(8, 12))
 
@@ -319,6 +331,9 @@ def main(argv: list[str] | None = None) -> int:
     root = project_root()
     sel = resolve_selection(args)
 
+    label = release_label()
+    if label:
+        print(f"{PRODUCT} {label}")
     print(textwrap.fill(LINUX_NOTE, width=78))
     print()
     print("Aktion:", "Deinstallieren" if sel.action == "uninstall" else "Installieren")

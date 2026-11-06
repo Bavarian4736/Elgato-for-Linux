@@ -13,3 +13,5 @@ Module.symvers
 modules.order
 .module-common.o
 dist/
+build-info.json
+_elgato_versions.py

@@ -26,7 +26,10 @@ Im Terminal:
 ./install.sh
 ./install.sh --no-plugin
 ./install.sh --plugin-only
+./install.sh --userspace
 ```
+
+`--userspace` kopiert nur die Programmdateien und startet PipeWire nicht neu.
 
 Die Installation schreibt `~/.config/pipewire/pipewire.conf.d/99-wavelink.conf`, wenn diese Datei fehlt, und startet PipeWire dann neu.
 

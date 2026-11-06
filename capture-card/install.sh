@@ -18,9 +18,36 @@ LOOPBACK_CONF="/etc/modprobe.d/v4l2loopback-hd60.conf"
 log() { printf '\n==> %s\n' "$*"; }
 die() { printf 'Fehler: %s\n' "$*" >&2; exit 1; }
 
+install_program_files() {
+  local repo tool
+  repo="$(cd "${ROOT}/.." && pwd)"
+  tool="${repo}/packaging/common/versions.py"
+  [[ -f "${tool}" ]] || die "Versionswerkzeug fehlt: ${tool}"
+  [[ -f "${ROOT}/VERSION" ]] || die "Komponentenversion fehlt: ${ROOT}/VERSION"
+  [[ -f "${ROOT}/DRIVER_VERSION" ]] || die "Treiberversion fehlt: ${ROOT}/DRIVER_VERSION"
+  [[ -f "${ROOT}/version_info.py" ]] || die "version_info.py fehlt"
+  [[ -f "${ROOT}/hd60s-launch" ]] || die "hd60s-launch fehlt"
+  install -d /usr/local/bin /usr/local/share/applications \
+    /usr/local/share/icons/hicolor/scalable/apps "${LIBEXEC}"
+  install -m 0755 "${ROOT}/hd60s.py" "${LIBEXEC}/hd60s.py"
+  install -m 0644 "${ROOT}/version_info.py" "${LIBEXEC}/version_info.py"
+  install -m 0644 "${tool}" "${LIBEXEC}/_elgato_versions.py"
+  install -m 0644 "${ROOT}/VERSION" "${LIBEXEC}/VERSION"
+  install -m 0644 "${ROOT}/DRIVER_VERSION" "${LIBEXEC}/DRIVER_VERSION"
+  install -m 0755 "${SCRIPT}" "${LIBEXEC}/install.sh"
+  install -m 0755 "${ROOT}/hd60s-launch" /usr/local/bin/hd60s
+  install -m 0644 "${ROOT}/hd60s.desktop" /usr/local/share/applications/hd60s.desktop
+  install -m 0644 "${ROOT}/hd60s.desktop" "${LIBEXEC}/hd60s.desktop"
+  install -m 0644 "${ROOT}/hd60s.svg" /usr/local/share/icons/hicolor/scalable/apps/hd60s.svg
+  install -m 0644 "${ROOT}/hd60s.svg" "${LIBEXEC}/hd60s.svg"
+  python3 "${tool}" stamp --root "${repo}" --dest "${LIBEXEC}" --component hd60
+  update-desktop-database /usr/local/share/applications >/dev/null 2>&1 || true
+  gtk-update-icon-cache -f /usr/local/share/icons/hicolor >/dev/null 2>&1 || true
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
   if ! command -v pkexec >/dev/null 2>&1; then
-    die "pkexec fehlt. Polkit wird gebraucht, damit der Treiber installiert werden kann."
+    die "pkexec fehlt. Polkit wird gebraucht, damit nach /usr/local geschrieben werden kann."
   fi
   exec pkexec /bin/bash "${SCRIPT}" "$@"
 fi
@@ -63,14 +90,17 @@ uninstall_driver() {
 }
 
 ENSURE=0
+USERSPACE=0
 if [[ "${1:-}" == "--uninstall" ]]; then
   uninstall_driver
   exit 0
 fi
 if [[ "${1:-}" == "--ensure" ]]; then
   ENSURE=1
+elif [[ "${1:-}" == "--userspace" ]]; then
+  USERSPACE=1
 elif [[ -n "${1:-}" ]]; then
-  die "Unbekanntes Argument: $1  (erlaubt sind --ensure und --uninstall)"
+  die "Unbekanntes Argument: $1  (erlaubt sind --ensure, --userspace und --uninstall)"
 fi
 
 [[ -r /etc/os-release ]] || die "Keine /etc/os-release gefunden."
@@ -80,6 +110,18 @@ case "${ID:-} ${ID_LIKE:-}" in
   *nobara*|*fedora*) ;;
   *) die "Dieses Skript ist für Nobara und Fedora. Erkannt: ${PRETTY_NAME:-unbekannt}." ;;
 esac
+
+if [[ "${USERSPACE}" -eq 1 ]]; then
+  install_program_files
+  cat << EOF
+
+HD60-Programm ist aktualisiert.
+Der Kernel-Treiber bleibt unverändert geladen.
+Audio-Dienste werden nicht neu gestartet.
+Das HD60-Fenster neu öffnen, damit die Info-Anzeige die Version übernimmt.
+EOF
+  exit 0
+fi
 
 KVER="$(uname -r)"
 if ! lsusb -d 0fd9:005e >/dev/null 2>&1; then
@@ -117,16 +159,7 @@ git -C "${SRC}" init
 git -C "${SRC}" remote add origin "${DRIVER_REPO}"
 git -C "${SRC}" fetch --depth 1 origin "${DRIVER_COMMIT}"
 git -C "${SRC}" checkout --detach FETCH_HEAD
-install -d /usr/local/bin /usr/local/share/applications /usr/local/share/icons/hicolor/scalable/apps "${LIBEXEC}"
-install -m 0755 "${ROOT}/hd60s.py" /usr/local/bin/hd60s
-install -m 0755 "${SCRIPT}" "${LIBEXEC}/install.sh"
-install -m 0755 "${ROOT}/hd60s.py" "${LIBEXEC}/hd60s.py"
-install -m 0644 "${ROOT}/hd60s.desktop" /usr/local/share/applications/hd60s.desktop
-install -m 0644 "${ROOT}/hd60s.desktop" "${LIBEXEC}/hd60s.desktop"
-install -m 0644 "${ROOT}/hd60s.svg" /usr/local/share/icons/hicolor/scalable/apps/hd60s.svg
-install -m 0644 "${ROOT}/hd60s.svg" "${LIBEXEC}/hd60s.svg"
-update-desktop-database /usr/local/share/applications >/dev/null 2>&1 || true
-gtk-update-icon-cache -f /usr/local/share/icons/hicolor >/dev/null 2>&1 || true
+install_program_files
 
 if [[ ! -f "${KEY}" || ! -f "${CERT}" ]]; then
   log "Signierschlüssel für Kernelmodule anlegen"
