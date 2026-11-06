@@ -8,6 +8,8 @@ Wave-Link-ähnlicher Audio-Mixer für **Nobara / Fedora (GNOME)** mit **PipeWire
 - Zwei unabhängige Mixes: **Monitor Mix** (Headset) und **Stream Mix** (OBS). Discord nutzt **WaveLink Microphone** (nur Mic).
 - Programme per **Drag & Drop** auf Spuren legen
 - Pro Spur eigene Lautstärke für Monitor und Stream (+ Mute)
+- Peak-Meter an den Reglern (Monitor/Stream), farblich wie am Stream-Deck-ChannelDial
+- Läuft nach dem Schließen des Fensters weiter und erscheint unter GNOME-Hintergrundanwendungen
 - **Stream Deck +** Steuerung über StreamController (4 Drehregler)
 
 ## Installation

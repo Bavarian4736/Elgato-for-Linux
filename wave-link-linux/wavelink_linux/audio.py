@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import signal
 import threading
@@ -36,14 +37,21 @@ def _env() -> dict[str, str]:
     return env
 
 
-def _run(cmd: list[str], check: bool = False) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        cmd,
-        env=_env(),
-        check=check,
-        capture_output=True,
-        text=True,
-    )
+def _run(cmd: list[str], check: bool = False, timeout: float = 1.5) -> subprocess.CompletedProcess:
+    """Run a PipeWire helper and kill it if the daemon never answers."""
+    try:
+        return subprocess.run(
+            cmd,
+            env=_env(),
+            check=check,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout waiting for PipeWire")
+    except FileNotFoundError as exc:
+        return subprocess.CompletedProcess(cmd, 127, "", str(exc))
 
 
 @dataclass
@@ -93,7 +101,35 @@ class AudioEngine:
     def connect(self) -> None:
         # Keep a primary connection for the creating/UI thread.
         if self._pulse is None:
-            self._pulse = pulsectl.Pulse("wavelink-linux")
+            self._pulse = self._open_pulse("wavelink-linux")
+
+    def _open_pulse(self, name: str, timeout: float = 4.0) -> pulsectl.Pulse:
+        """Connect to PipeWire, but give up if the server never answers.
+
+        A dead PipeWire main thread accepts nothing and blocks libpulse forever.
+        That used to freeze startup before the window existed.
+        """
+        holder: list[pulsectl.Pulse] = []
+        errors: list[BaseException] = []
+
+        def _open() -> None:
+            try:
+                holder.append(pulsectl.Pulse(name))
+            except BaseException as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=_open, name=f"pulse-{name}", daemon=True)
+        thread.start()
+        thread.join(timeout)
+        if thread.is_alive():
+            raise pulsectl.PulseError(
+                "PipeWire antwortet nicht. Der Audio-Dienst hängt und muss neu gestartet werden."
+            )
+        if errors:
+            raise errors[0]
+        if not holder:
+            raise pulsectl.PulseError("PipeWire-Verbindung fehlgeschlagen")
+        return holder[0]
 
     def close(self) -> None:
         # Loopbacks bewusst weiterlaufen lassen, damit Monitor/Stream
@@ -130,7 +166,7 @@ class AudioEngine:
             if tid in self._thread_pulses:
                 return self._thread_pulses[tid]
             if self._pulse is None:
-                self._pulse = pulsectl.Pulse("wavelink-linux")
+                self._pulse = self._open_pulse("wavelink-linux")
                 return self._pulse
             # First thread to call pulse keeps the primary; others get clones
             owner = getattr(self, "_pulse_owner_tid", None)
@@ -139,7 +175,7 @@ class AudioEngine:
                 return self._pulse
             if owner == tid:
                 return self._pulse
-            pulse = pulsectl.Pulse(f"wavelink-linux-{tid}")
+            pulse = self._open_pulse(f"wavelink-linux-{tid}")
             self._thread_pulses[tid] = pulse
             return pulse
 
@@ -150,6 +186,12 @@ class AudioEngine:
 
     def subscribe(self, cb: Callable[[], None]) -> None:
         self._on_change.append(cb)
+
+    def unsubscribe(self, cb: Callable[[], None]) -> None:
+        try:
+            self._on_change.remove(cb)
+        except ValueError:
+            pass
 
     def notify(self) -> None:
         for cb in list(self._on_change):
@@ -386,18 +428,47 @@ class AudioEngine:
         self.pin_discord_to_clean_mic()
         self._silence_usb_mic_headphones()
 
+    def _snapshot_links(self) -> set[tuple[str, str]] | None:
+        out = _run(["pw-link", "-l"], timeout=1.5)
+        if out.returncode != 0 and not out.stdout:
+            return None
+        links: set[tuple[str, str]] = set()
+        current = ""
+        for line in out.stdout.splitlines():
+            if not line.strip():
+                continue
+            if line[:1] in (" ", "\t", "|"):
+                if current and "|->" in line:
+                    dest = line.split("|->", 1)[1].strip()
+                    if dest:
+                        links.add((current, dest))
+                continue
+            current = line.strip()
+        return links
+
+    def _ensure_link(self, src: str, dst: str, links: set[tuple[str, str]] | None) -> None:
+        if links is not None and (src, dst) in links:
+            return
+        _run(["pw-link", src, dst])
+
+    def _drop_link(self, src: str, dst: str, links: set[tuple[str, str]] | None) -> None:
+        if links is not None and (src, dst) not in links:
+            return
+        _run(["pw-link", "-d", src, dst])
+
     def pin_mic_capture(self) -> None:
         """Force physical mic → clean mic bus; keep EE from stealing the capture."""
         mic = self.settings.get("mic_device") or self._default_source_name()
         if not mic:
             return
+        links = self._snapshot_links()
         # Hardware → clean mic sink
         for ch in ("FL", "FR"):
             src = f"{mic}:capture_{ch}"
             dst = "input.wavelink_hw_to_mic:input_" + ch
-            _run(["pw-link", "-d", f"easyeffects_source:capture_{ch}", dst])
-            _run(["pw-link", "-d", f"{STREAM_SINK}:monitor_{ch}", dst])
-            _run(["pw-link", src, dst])
+            self._drop_link(f"easyeffects_source:capture_{ch}", dst, links)
+            self._drop_link(f"{STREAM_SINK}:monitor_{ch}", dst, links)
+            self._ensure_link(src, dst, links)
         # Clean mic bus → stream / monitor loopbacks
         for suffix in ("stream", "monitor"):
             name = f"wavelink_mic_to_{suffix}"
@@ -406,9 +477,9 @@ class AudioEngine:
             for ch in ("FL", "FR"):
                 src = f"{MIC_CHANNEL.sink_name}:monitor_{ch}"
                 dst = f"input.{name}:input_{ch}"
-                _run(["pw-link", "-d", f"easyeffects_source:capture_{ch}", dst])
-                _run(["pw-link", "-d", f"{mic}:capture_{ch}", dst])
-                _run(["pw-link", src, dst])
+                self._drop_link(f"easyeffects_source:capture_{ch}", dst, links)
+                self._drop_link(f"{mic}:capture_{ch}", dst, links)
+                self._ensure_link(src, dst, links)
 
     def pin_discord_to_clean_mic(self) -> None:
         """Discord must hear ONLY the mic — never Stream Mix (that has desktop)."""
@@ -438,17 +509,18 @@ class AudioEngine:
                 except Exception:
                     pass
         mic_hw = self.settings.get("mic_device") or ""
+        links = self._snapshot_links()
         for ch in ("FL", "FR"):
             dst = f"WEBRTC VoiceEngine:input_{ch}"
             # Drop desktop / EE / stream-mix feeds into Discord
-            _run(["pw-link", "-d", f"easyeffects_source:capture_{ch}", dst])
-            _run(["pw-link", "-d", f"{STREAM_SINK}:monitor_{ch}", dst])
-            _run(["pw-link", "-d", f"{MONITOR_SINK}:monitor_{ch}", dst])
+            self._drop_link(f"easyeffects_source:capture_{ch}", dst, links)
+            self._drop_link(f"{STREAM_SINK}:monitor_{ch}", dst, links)
+            self._drop_link(f"{MONITOR_SINK}:monitor_{ch}", dst, links)
             if mic_hw:
-                _run(["pw-link", "-d", f"{mic_hw}:capture_{ch}", dst])
+                self._drop_link(f"{mic_hw}:capture_{ch}", dst, links)
             # Prefer virtual WaveLink Microphone source (visible in Discord)
-            _run(["pw-link", "-d", f"{MIC_CHANNEL.sink_name}:monitor_{ch}", dst])
-            _run(["pw-link", f"{MIC_SOURCE_NAME}:capture_{ch}", dst])
+            self._drop_link(f"{MIC_CHANNEL.sink_name}:monitor_{ch}", dst, links)
+            self._ensure_link(f"{MIC_SOURCE_NAME}:capture_{ch}", dst, links)
 
     def maintain_routing(self) -> None:
         self.pin_mic_capture()
@@ -502,14 +574,12 @@ class AudioEngine:
                 except Exception:
                     pass
                 # Also disconnect any playback links into this sink
+                links = self._snapshot_links()
                 for ch in ("FL", "FR"):
-                    _run(
-                        [
-                            "pw-link",
-                            "-d",
-                            f"output.wavelink_monitor_to_hw:output_{ch}",
-                            f"{s.name}:playback_{ch}",
-                        ]
+                    self._drop_link(
+                        f"output.wavelink_monitor_to_hw:output_{ch}",
+                        f"{s.name}:playback_{ch}",
+                        links,
                     )
         except Exception:
             pass
@@ -792,7 +862,108 @@ class AudioEngine:
 
     # --- volumes --------------------------------------------------------
 
-    MAX_VOLUME = 2.0  # 200%
+    # 100% is unity. The old 200% mark only made about +11% more level,
+    # so the scale now ends at that real loudness instead of saying 200%.
+    _LEGACY_BOOST = 0.12
+    MAX_VOLUME = 1.0 + _LEGACY_BOOST * math.tanh(1.4)
+
+    def __post_init__(self) -> None:
+        self._migrate_volume_scale()
+
+    def _legacy_fader_gain(self, ui: float) -> float:
+        ui = max(0.0, min(2.0, float(ui)))
+        if ui <= 1.0:
+            return ui
+        return 1.0 + self._LEGACY_BOOST * math.tanh((ui - 1.0) * 1.4)
+
+    def _migrate_volume_scale(self) -> None:
+        """Rewrite saved 0–200% faders into the gain they were actually applying."""
+        if self.settings.get("volume_scale") == "gain":
+            return
+        volumes = self.settings.setdefault("volumes", {})
+        for key, raw in list(volumes.items()):
+            try:
+                volumes[key] = round(self._legacy_fader_gain(float(raw)), 4)
+            except (TypeError, ValueError):
+                continue
+        self.settings["volume_scale"] = "gain"
+        app_config.save(self.settings)
+
+    def _fader_gain(self, ui: float) -> float:
+        return max(0.0, min(self.MAX_VOLUME, float(ui)))
+
+    def display_percent(self, ui: float) -> int:
+        return int(round(self._fader_gain(ui) * 100))
+
+    def _bus_trims(self) -> dict[str, float]:
+        trims = getattr(self, "_bus_trim", None)
+        if trims is None:
+            self._bus_trim = {"monitor": 1.0, "stream": 1.0}
+            trims = self._bus_trim
+        return trims
+
+    def _output_gain(self, ui: float, mix: str) -> float:
+        return self._fader_gain(ui) * self._bus_trims().get(mix, 1.0)
+
+    def _mix_ceiling(self, mix: str) -> float:
+        """Clean peak for this bus. A headset above 100% lowers the digital ceiling."""
+        if mix != "monitor":
+            return 0.90
+        now = time.monotonic()
+        cached = getattr(self, "_hw_ceiling", None)
+        if cached and now - cached[0] < 2.0:
+            return cached[1]
+        hw = 1.0
+        name = self.settings.get("monitor_device") or ""
+        try:
+            sink = self.sink_by_name(name) if name else None
+            if sink is not None and sink.volume.values:
+                hw = max(float(v) for v in sink.volume.values)
+        except Exception:
+            hw = 1.0
+        hw = max(0.25, hw)
+        ceiling = max(0.40, min(0.90, 0.92 / hw))
+        self._hw_ceiling = (now, ceiling)
+        return ceiling
+
+    def service_output_limiter(self) -> None:
+        """Ease the mix back while it is clipping, then recover when it gets quiet."""
+        now = time.monotonic()
+        if now - getattr(self, "_limiter_at", 0.0) < 0.08:
+            return
+        self._limiter_at = now
+        trims = self._bus_trims()
+        changed: list[str] = []
+        for mix in ("monitor", "stream"):
+            raw = float(self.peak_meter.get_raw(f"master:{mix}") or 0.0)
+            limit = self._mix_ceiling(mix)
+            trim = trims.get(mix, 1.0)
+            if raw > limit * 1.12:
+                trim *= 0.72
+            elif raw > limit:
+                trim *= 0.90
+            elif raw < limit * 0.62 and trim < 1.0:
+                trim = min(1.0, trim * 1.04)
+            trim = max(0.30, min(1.0, trim))
+            if abs(trim - trims.get(mix, 1.0)) >= 0.025:
+                changed.append(mix)
+            trims[mix] = trim
+        for mix in changed:
+            self._push_master_gain(mix)
+
+    def _push_master_gain(self, mix: str) -> None:
+        sink_name = MONITOR_SINK if mix == "monitor" else STREAM_SINK
+        sink = self.sink_by_name(sink_name)
+        if sink is None:
+            return
+        muted = self.get_master_mute(mix)
+        gain = 0.0 if muted else self._output_gain(self.get_master_volume(mix), mix)
+        try:
+            with self._pulse_lock:
+                self.pulse.volume_set_all_chans(sink, gain)
+                self.pulse.mute(sink, muted)
+        except Exception:
+            pass
 
     def _vol_key(self, channel_key: str, mix: str) -> str:
         return f"{channel_key}:{mix}"
@@ -823,8 +994,13 @@ class AudioEngine:
             muted = self.get_channel_mute(channel_key, mix)
 
         max_possible = float(self.MAX_VOLUME) or 2.0
-        # 1.0 = 100% (unity). Values up to max_possible allow 200% headroom on the meter.
-        fader_scale = 0.0 if muted else max(0.0, min(float(vol), max_possible))
+        # Meter follows the gain that actually reaches the mix, including the limiter.
+        if muted:
+            fader_scale = 0.0
+        elif channel_key == "master":
+            fader_scale = self._output_gain(vol, mix)
+        else:
+            fader_scale = self._fader_gain(vol)
 
         signal = PeakMeter.to_display(raw)
         signal_hold = PeakMeter.to_display(raw_hold)
@@ -971,7 +1147,9 @@ class AudioEngine:
             if inp is None:
                 return
             try:
-                self.pulse.volume_set_all_chans(inp, 0.0 if muted else volume)
+                self.pulse.volume_set_all_chans(
+                    inp, 0.0 if muted else self._fader_gain(volume)
+                )
                 self.pulse.mute(inp, muted)
             except Exception:
                 pass
@@ -985,32 +1163,15 @@ class AudioEngine:
                     self.get_channel_volume(ch.key, mix),
                     self.get_channel_mute(ch.key, mix),
                 )
-        # Master mix volumes
-        for sink_name, key in ((MONITOR_SINK, "master:monitor"), (STREAM_SINK, "master:stream")):
-            sink = self.sink_by_name(sink_name)
-            if not sink:
-                continue
-            vol = float(self.settings.get("volumes", {}).get(key, 1.0))
-            muted = bool(self.settings.get("mutes", {}).get(key, False))
-            try:
-                self.pulse.volume_set_all_chans(sink, 0.0 if muted else vol)
-                self.pulse.mute(sink, muted)
-            except Exception:
-                pass
+        for mix in ("monitor", "stream"):
+            self._push_master_gain(mix)
 
     def set_master_volume(self, mix: str, value: float, *, notify: bool = True) -> None:
         value = max(0.0, min(self.MAX_VOLUME, float(value)))
         key = f"master:{mix}"
         self.settings.setdefault("volumes", {})[key] = value
         app_config.save(self.settings)
-        sink_name = MONITOR_SINK if mix == "monitor" else STREAM_SINK
-        sink = self.sink_by_name(sink_name)
-        if sink:
-            muted = self.get_master_mute(mix)
-            try:
-                self.pulse.volume_set_all_chans(sink, 0.0 if muted else value)
-            except Exception:
-                pass
+        self._push_master_gain(mix)
         if notify:
             self.notify()
 
@@ -1020,15 +1181,7 @@ class AudioEngine:
     def set_master_mute(self, mix: str, muted: bool, *, notify: bool = True) -> None:
         self.settings.setdefault("mutes", {})[f"master:{mix}"] = muted
         app_config.save(self.settings)
-        sink_name = MONITOR_SINK if mix == "monitor" else STREAM_SINK
-        sink = self.sink_by_name(sink_name)
-        if sink:
-            try:
-                self.pulse.mute(sink, muted)
-                if not muted:
-                    self.pulse.volume_set_all_chans(sink, self.get_master_volume(mix))
-            except Exception:
-                pass
+        self._push_master_gain(mix)
         if notify:
             self.notify()
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.3 – 2026-11-06
+
+### Wave Link Linux (wave-link-linux)
+- Aktuellen Stand aus dem lokalen Wave-Link-Ordner übernommen (ohne den Ordner zu löschen).
+- Pegelanzeige: eigene Peak-Meter an Monitor- und Stream-Regler, Farben und Stummschaltung wie am Stream-Deck-ChannelDial.
+- Start hängt nicht mehr, wenn PipeWire nicht antwortet (Timeouts bei Verbindung und Bootstrap).
+- Peak-Meter: eigener Polling-Thread statt GLib-Watch, damit die Anzeige nicht auf Null stehen bleibt.
+- Wave Link erscheint in den GNOME-Schnelleinstellungen unter Hintergrundanwendungen.
+- Neue Stream-Deck+-Touchbar-Hintergründe (teal/neon statt der Oktoberfest-Serie).
+- Spurwerk-Installer, StreamController-Plugin, Spotify-Plugin und PipeWire-Setup aus dem Monorepo bleiben erhalten.
+
 ## v1.3.2 – 2026-11-05
 
 ### Wave Link Linux (wave-link-linux)

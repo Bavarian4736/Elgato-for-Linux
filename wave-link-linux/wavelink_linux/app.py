@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 
 import gi
 
@@ -8,11 +9,12 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, Gdk, GLib, GObject, Gtk, Pango
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from . import __version__
 from .api_server import WaveLinkApiServer
 from .audio import AudioEngine
+from .background_portal import BackgroundListing
 from .channels import CHANNELS, MIC_CHANNEL, SINK_CHANNELS
 
 
@@ -110,81 +112,109 @@ class DropZone(Gtk.Box):
         self.remove_css_class("drop-hover")
 
 
-class VuMeter(Gtk.DrawingArea):
-    """Vertical peak meter with hold marker (sensitive dB-mapped 0..1)."""
+class PeakMeterView(Gtk.DrawingArea):
+    """Stream Deck ChannelDial peak strip — only pegelanzeige in the app."""
 
-    def __init__(self):
+    WARN = 0.7
+    HOT = 0.9
+
+    def __init__(self, mix_label: str = ""):
         super().__init__()
         self.peak = 0.0
         self.hold = 0.0
         self.signal = False
-        self.set_content_width(14)
+        self.muted = False
+        self.accent = (0.30, 0.85, 0.72)
+        self.set_content_width(18)
         self.set_hexpand(False)
         self.set_vexpand(True)
-        self.set_size_request(14, 140)
+        self.set_size_request(18, 140)
         self.set_draw_func(self._draw)
-        self.set_tooltip_text("Audio-Pegel der Spur")
+        self.set_tooltip_text(f"Pegel {mix_label}" if mix_label else "Pegel")
 
-    def set_levels(self, peak: float, hold: float, signal: bool = False) -> None:
+    def set_accent_hex(self, hex_color: str) -> None:
+        try:
+            h = hex_color.lstrip("#")
+            if len(h) == 3:
+                h = "".join(c * 2 for c in h)
+            self.accent = (
+                int(h[0:2], 16) / 255.0,
+                int(h[2:4], 16) / 255.0,
+                int(h[4:6], 16) / 255.0,
+            )
+        except Exception:
+            self.accent = (78 / 255.0, 205 / 255.0, 196 / 255.0)
+        self.queue_draw()
+
+    def set_levels(
+        self,
+        peak: float,
+        hold: float,
+        signal: bool = False,
+        muted: bool = False,
+    ) -> None:
         peak = max(0.0, min(1.0, float(peak)))
         hold = max(0.0, min(1.0, float(hold)))
         if (
             abs(peak - self.peak) < 0.008
             and abs(hold - self.hold) < 0.008
             and signal == self.signal
+            and muted == self.muted
         ):
             return
         self.peak = peak
         self.hold = hold
         self.signal = signal
+        self.muted = muted
         self.queue_draw()
 
-    def _color_for(self, level: float) -> tuple[float, float, float]:
-        if level >= 0.92:
-            return (0.92, 0.28, 0.28)
-        if level >= 0.72:
-            return (0.95, 0.78, 0.22)
-        if self.signal or level > 0.04:
-            return (0.30, 0.85, 0.72)
-        return (0.35, 0.40, 0.45)
+    def _meter_color(self, level: float) -> tuple[float, float, float]:
+        # ChannelDial._meter_color
+        if self.muted:
+            return (90 / 255.0, 90 / 255.0, 90 / 255.0)
+        if level >= self.HOT:
+            return (230 / 255.0, 70 / 255.0, 70 / 255.0)
+        if level >= self.WARN:
+            return (235 / 255.0, 190 / 255.0, 60 / 255.0)
+        if self.signal or level > 0.012:
+            return self.accent
+        return (90 / 255.0, 90 / 255.0, 90 / 255.0)
 
     def _draw(self, _area, cr, width: int, height: int) -> None:
-        # Track
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.45)
-        cr.rectangle(0, 0, width, height)
-        cr.fill()
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.08)
-        cr.rectangle(0.5, 0.5, width - 1, height - 1)
+        # ChannelDial track: dark well + black outline
+        radius = min(3.0, width / 2.0, height / 2.0)
+        cr.new_sub_path()
+        cr.arc(width - radius, radius, radius, -1.5708, 0)
+        cr.arc(width - radius, height - radius, radius, 0, 1.5708)
+        cr.arc(radius, height - radius, radius, 1.5708, 3.1416)
+        cr.arc(radius, radius, radius, 3.1416, 4.7124)
+        cr.close_path()
+        cr.set_source_rgb(28 / 255.0, 28 / 255.0, 32 / 255.0)
+        cr.fill_preserve()
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.78)
+        cr.set_line_width(1.0)
         cr.stroke()
 
-        # Segmented fill from bottom
-        fill_h = int(height * self.peak)
-        if fill_h > 0:
-            y0 = height - fill_h
-            # draw in 3 color bands
-            bands = (
-                (0.0, 0.72, (0.30, 0.85, 0.72)),
-                (0.72, 0.92, (0.95, 0.78, 0.22)),
-                (0.92, 1.01, (0.92, 0.28, 0.28)),
-            )
-            for lo, hi, color in bands:
-                a = max(lo, 0.0)
-                b = min(hi, self.peak)
-                if b <= a:
-                    continue
-                y_bot = height - int(height * a)
-                y_top = height - int(height * b)
-                cr.set_source_rgb(*color)
-                cr.rectangle(2, y_top, width - 4, max(1, y_bot - y_top))
-                cr.fill()
+        if self.peak <= 0.001 and self.hold <= 0.001:
+            return
 
-        # Peak-hold tick
-        if self.hold > 0.02:
+        # Solid fill from bottom (same as dial vertical strip)
+        if self.peak > 0.001:
+            fill_h = max(2, int(height * self.peak))
+            y0 = height - fill_h
+            cr.set_source_rgb(*self._meter_color(self.peak))
+            cr.rectangle(2, y0, max(1, width - 4), fill_h)
+            cr.fill()
+
+        # Hold marker
+        if self.hold > 0.001:
             y = height - int(height * self.hold)
             y = max(1, min(height - 2, y))
-            cr.set_source_rgba(1.0, 1.0, 1.0, 0.9)
-            cr.rectangle(1, y, width - 2, 2)
-            cr.fill()
+            cr.set_source_rgba(1.0, 1.0, 1.0, 0.86)
+            cr.set_line_width(1.0)
+            cr.move_to(1, y + 0.5)
+            cr.line_to(width - 1, y + 0.5)
+            cr.stroke()
 
 
 class ChannelStrip(Gtk.Box):
@@ -221,23 +251,12 @@ class ChannelStrip(Gtk.Box):
         self.drop.connect("app-dropped", self._on_dropped)
         self.append(self.drop)
 
-        self.vu = VuMeter()
         self.mon_scale = self._make_scale("Monitor")
         self.str_scale = self._make_scale("Stream")
-        faders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        faders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8, homogeneous=True)
         faders.set_vexpand(True)
-        faders.set_homogeneous(False)
-        vu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        vu_lbl = Gtk.Label(label="VU")
-        vu_lbl.add_css_class("caption")
-        vu_lbl.add_css_class("dim-label")
-        vu_box.append(vu_lbl)
-        vu_box.append(self.vu)
-        faders.append(vu_box)
         faders.append(self.mon_scale["box"])
         faders.append(self.str_scale["box"])
-        self.mon_scale["box"].set_hexpand(True)
-        self.str_scale["box"].set_hexpand(True)
         self.append(faders)
 
         self.mon_mute = Gtk.ToggleButton(label="M")
@@ -289,6 +308,8 @@ class ChannelStrip(Gtk.Box):
             display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
         self._accent_css = css
+        self.mon_scale["meter"].set_accent_hex(accent)
+        self.str_scale["meter"].set_accent_hex(accent)
 
     def _rgba_to_hex(self, rgba: Gdk.RGBA) -> str:
         r = int(round(rgba.red * 255))
@@ -322,18 +343,44 @@ class ChannelStrip(Gtk.Box):
 
     def _make_scale(self, label: str) -> dict:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        box.set_hexpand(True)
         lbl = Gtk.Label(label=label)
         lbl.add_css_class("caption")
         lbl.add_css_class("dim-label")
-        adj = Gtk.Adjustment(lower=0, upper=2.0, step_increment=0.01, page_increment=0.1, value=1.0)
+        adj = Gtk.Adjustment(
+            lower=0,
+            upper=self.engine.MAX_VOLUME,
+            step_increment=0.01,
+            page_increment=0.05,
+            value=1.0,
+        )
         scale = Gtk.Scale(orientation=Gtk.Orientation.VERTICAL, adjustment=adj)
         scale.set_vexpand(True)
+        scale.set_hexpand(True)
         scale.set_draw_value(False)
         scale.set_inverted(True)
         scale.set_size_request(-1, 140)
+
+        # Only the Stream Deck peak strip as pegelanzeige (beside volume fader)
+        meter = PeakMeterView(mix_label=label)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        row.set_vexpand(True)
+        row.append(meter)
+        row.append(scale)
+
+        pct = Gtk.Label(label=self._pct_text(1.0))
+        pct.add_css_class("caption")
+        adj.connect(
+            "value-changed",
+            lambda a, label=pct: label.set_label(self._pct_text(a.get_value())),
+        )
         box.append(lbl)
-        box.append(scale)
-        return {"box": box, "adj": adj, "scale": scale}
+        box.append(pct)
+        box.append(row)
+        return {"box": box, "adj": adj, "scale": scale, "meter": meter, "pct": pct}
+
+    def _pct_text(self, value: float) -> str:
+        return f"{self.engine.display_percent(value)}%"
 
     def _load_levels(self) -> None:
         self._syncing_levels = True
@@ -406,16 +453,17 @@ class ChannelStrip(Gtk.Box):
         self.drop.set_apps(chips)
 
     def refresh_meter(self) -> None:
-        # Post-fader: take the louder of Monitor/Stream (signal × software volume)
-        mon = self.engine.get_channel_peak(self.channel_key, "monitor")
-        st = self.engine.get_channel_peak(self.channel_key, "stream")
-        peak = max(float(mon.get("peak", 0.0) or 0.0), float(st.get("peak", 0.0) or 0.0))
-        hold = max(
-            float(mon.get("peak_hold", 0.0) or 0.0),
-            float(st.get("peak_hold", 0.0) or 0.0),
-        )
-        signal = bool(mon.get("signal") or st.get("signal"))
-        self.vu.set_levels(peak, hold, signal)
+        for mix, slot in (
+            ("monitor", self.mon_scale),
+            ("stream", self.str_scale),
+        ):
+            snap = self.engine.get_channel_peak(self.channel_key, mix)
+            slot["meter"].set_levels(
+                float(snap.get("peak", 0.0) or 0.0),
+                float(snap.get("peak_hold", 0.0) or 0.0),
+                bool(snap.get("signal", False)),
+                muted=self.engine.get_channel_mute(self.channel_key, mix),
+            )
 
 
 class WaveLinkWindow(Adw.ApplicationWindow):
@@ -484,9 +532,6 @@ class WaveLinkWindow(Adw.ApplicationWindow):
             .hint {
                 opacity: 0.7;
             }
-            .vu-meter {
-                min-width: 14px;
-            }
             """
         )
         Gtk.StyleContext.add_provider_for_display(
@@ -498,6 +543,15 @@ class WaveLinkWindow(Adw.ApplicationWindow):
 
         header = Adw.HeaderBar()
         header.set_title_widget(Gtk.Label(label="WaveLink Linux", css_classes=["brand"]))
+        menu = Gio.Menu()
+        menu.append("Beenden", "app.quit")
+        header.pack_end(
+            Gtk.MenuButton(
+                icon_name="open-menu-symbolic",
+                menu_model=menu,
+                tooltip_text="Menü",
+            )
+        )
         root.append(header)
 
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -573,13 +627,20 @@ class WaveLinkWindow(Adw.ApplicationWindow):
 
         footer.append(Gtk.Box(hexpand=True))
 
-        self.master_mon = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 2.0, 0.01)
-        self.master_str = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 2.0, 0.01)
+        self.master_mon = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, self.engine.MAX_VOLUME, 0.01
+        )
+        self.master_str = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, self.engine.MAX_VOLUME, 0.01
+        )
         for scale, mix in ((self.master_mon, "monitor"), (self.master_str, "stream")):
+            scale.set_format_value_func(
+                lambda _scale, value: f"{self.engine.display_percent(value)}%"
+            )
             scale.set_value(self.engine.get_master_volume(mix))
             scale.set_draw_value(True)
             scale.set_value_pos(Gtk.PositionType.RIGHT)
-            scale.set_size_request(160, -1)
+            scale.set_size_request(180, -1)
 
         mm = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         mm.append(Gtk.Label(label="Monitor Mix", xalign=0.0, css_classes=["caption"]))
@@ -603,9 +664,23 @@ class WaveLinkWindow(Adw.ApplicationWindow):
         self.master_str.connect("value-changed", self._on_master_str)
 
         self.engine.subscribe(self._on_engine_changed)
+        self._closed = False
+        self._routing_busy = False
         self.refresh()
         GLib.timeout_add_seconds(2, self._tick)
         GLib.timeout_add(50, self._meter_tick)
+        self.connect("close-request", self._on_close_request)
+
+    def _on_close_request(self, *_args) -> bool:
+        # Destroy the window instead of hiding it. A hidden window stays in
+        # GNOME's Wayland session and is restored minimized on the next open.
+        # Application.hold() keeps routing, meters and the API running.
+        if self._closed:
+            return True
+        self._closed = True
+        self.engine.unsubscribe(self._on_engine_changed)
+        self.destroy()
+        return True
 
     def _apply_sidebar_width(self, width: int) -> bool:
         width = max(180, min(600, int(width)))
@@ -717,14 +792,40 @@ class WaveLinkWindow(Adw.ApplicationWindow):
         return False
 
     def _tick(self) -> bool:
-        try:
-            self.engine.maintain_routing()
-            self.refresh()
-        except Exception:
-            pass
+        if self._closed:
+            return False
+        # Routing talks to PipeWire via pw-link. That must not run on the GTK
+        # thread: one stuck call used to freeze the mixer and the next launch.
+        if self._routing_busy:
+            return True
+        self._routing_busy = True
+
+        def work() -> None:
+            try:
+                self.engine.maintain_routing()
+            except Exception:
+                pass
+            GLib.idle_add(self._routing_done)
+
+        threading.Thread(target=work, name="wavelink-routing", daemon=True).start()
         return True
 
+    def _routing_done(self) -> bool:
+        self._routing_busy = False
+        if not self._closed:
+            try:
+                self.refresh()
+            except Exception:
+                pass
+        return False
+
     def _meter_tick(self) -> bool:
+        if self._closed:
+            return False
+        try:
+            self.engine.service_output_limiter()
+        except Exception:
+            pass
         try:
             for strip in self.strips.values():
                 strip.refresh_meter()
@@ -738,10 +839,45 @@ class WaveLinkApp(Adw.Application):
         super().__init__(application_id=APP_ID, flags=0)
         self.engine = AudioEngine()
         self.api: WaveLinkApiServer | None = None
+        self._background = False
+        self._listing: BackgroundListing | None = None
+
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+        if not self.has_action("quit"):
+            action = Gio.SimpleAction.new("quit", None)
+            action.connect("activate", lambda *_args: self.quit())
+            self.add_action(action)
+            self.set_accels_for_action("app.quit", ["<primary>q"])
+
+    def _mixer_window(self) -> WaveLinkWindow | None:
+        for win in self.get_windows():
+            if isinstance(win, WaveLinkWindow) and not win._closed:
+                return win
+        return None
+
+    def _bootstrap_bounded(self, timeout: float = 8.0) -> None:
+        errors: list[BaseException] = []
+
+        def work() -> None:
+            try:
+                self.engine.bootstrap()
+            except BaseException as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=work, name="wavelink-bootstrap", daemon=True)
+        thread.start()
+        thread.join(timeout)
+        if thread.is_alive():
+            raise TimeoutError(
+                "PipeWire antwortet nicht. Der Audio-Dienst hängt und muss neu gestartet werden."
+            )
+        if errors:
+            raise errors[0]
 
     def do_activate(self):
         try:
-            self.engine.bootstrap()
+            self._bootstrap_bounded()
             if self.api is None:
                 self.api = WaveLinkApiServer(self.engine)
                 self.api.start()
@@ -758,12 +894,29 @@ class WaveLinkApp(Adw.Application):
             win.present()
             return
 
-        win = self.props.active_window
-        if not win:
+        win = self._mixer_window()
+        if win is None:
             win = WaveLinkWindow(self, self.engine)
+        # Present before any extra D-Bus work so GNOME's activation token
+        # still belongs to this show and the window is not minimized.
         win.present()
+        if not self._background:
+            # Keep the process alive after the mixer window is closed.
+            self.hold()
+            self._background = True
+            self._publish_background()
+
+    def _publish_background(self) -> None:
+        if self._listing is not None:
+            return
+        listing = BackgroundListing()
+        listing.publish()
+        self._listing = listing
 
     def do_shutdown(self):
+        if self._listing is not None:
+            self._listing.remove()
+            self._listing = None
         if self.api is not None:
             self.api.stop()
             self.api = None
