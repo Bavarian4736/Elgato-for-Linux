@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Versionen
+- Wave Link zeigt Komponentenversion 1.1.0 und die Suite Elgato for Linux (derzeit 1.3.3). Die stehengebliebene Angabe 1.0.0 ist entfernt.
+- HD60-Programm bleibt 1.1.0. Der Treiber bleibt hd60s/0.1 und wird nicht auf die Suite- oder Programmversion gesetzt.
+- Das StreamController-Plugin meldet seine VERSION-Datei 1.1.0. Spotify bleibt 1.2.0, die Touchbar-Hintergründe bleiben 1.0.0.
+- Installer und RPM schreiben einen Build-Stempel. Ein Release-Tag, der nicht zur Datei `VERSION` passt, bricht den Build ab.
+
 ## v1.3.3 – 2026-11-06
 
 ### Wave Link Linux (wave-link-linux)

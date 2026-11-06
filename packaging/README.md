@@ -12,9 +12,12 @@ Beide Programme sind für **Nobara/Fedora (Linux)**.
 
 ## Release
 
+Die Suite-Version steht in `VERSION` im Repo-Root und muss zum Tag passen. Komponenten (Wave Link, HD60-Programm, Plugins, Treiber `hd60s/0.1`) haben eigene `VERSION`-Dateien und werden nicht auf den Suite-Tag gesetzt.
+
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+# Der Tag muss VERSION entsprechen. Steht dort 1.3.3:
+git tag v1.3.3
+git push origin v1.3.3
 ```
 
 Oder Actions → **Release Linux installer** → Run workflow.

@@ -13,6 +13,7 @@ if plugin_dir not in sys.path:
     sys.path.insert(0, plugin_dir)
 
 from actions.ChannelDial.ChannelDial import ChannelDial  # noqa: E402
+from version_info import read_plugin_version  # noqa: E402
 
 
 class WaveLinkPlugin(PluginBase):
@@ -43,6 +44,6 @@ class WaveLinkPlugin(PluginBase):
         self.register(
             plugin_name="WaveLink",
             github_repo="https://github.com/local/wavelink-linux",
-            plugin_version="1.0.0",
+            plugin_version=read_plugin_version(),
             app_version="1.5.0-beta",
         )

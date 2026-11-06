@@ -16,6 +16,11 @@ import sys
 import time
 from pathlib import Path
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from version_info import about_fields
+
 # Discord liest das Fenster über den Bildschirmportal. DMA-Puffer darin lässt
 # die Übertragung ewig laden und blockiert danach auch andere Übertragungen.
 _disabled = [part for part in os.environ.get("GDK_DISABLE", "").split(",") if part]
@@ -495,12 +500,13 @@ class Hd60Window(Adw.ApplicationWindow):
         self._reveal_bars(True)
 
     def on_about(self, *_args):
+        about = about_fields()
         dialog = Adw.AboutDialog()
         dialog.set_application_name("HD60")
         dialog.set_application_icon("hd60s")
         dialog.set_developer_name("Bavarian4736")
-        dialog.set_version("1.1.0")
-        dialog.set_comments("Bild und Ton der Elgato Game Capture HD60 S, ohne OBS.")
+        dialog.set_version(about["version"])
+        dialog.set_comments(about["comments"])
         dialog.set_website("https://github.com/Bavarian4736/hd60s-nobara")
         dialog.set_license_type(Gtk.License.MIT_X11)
         dialog.present(self)

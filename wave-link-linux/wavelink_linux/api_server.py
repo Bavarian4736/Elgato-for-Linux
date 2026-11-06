@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
 from .channels import CHANNELS
+from .version import public_versions
 
 if TYPE_CHECKING:
     from .audio import AudioEngine
@@ -80,6 +81,7 @@ class _Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "name": "WaveLink Linux",
                     "port": API_PORT,
+                    **public_versions(),
                 },
             )
             return

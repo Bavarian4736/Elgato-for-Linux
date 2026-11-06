@@ -4,7 +4,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT_DIR="${1:-"${ROOT}/dist"}"
-VERSION="${INSTALLER_VERSION:-${STUDIO_VERSION:-dev}}"
+DECLARED="$(tr -d '[:space:]' < "${ROOT}/VERSION")"
+VERSION="${INSTALLER_VERSION:-${DECLARED}}"
+python3 "${ROOT}/packaging/common/versions.py" check --suite "${VERSION}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "${STAGE}"' EXIT
 
@@ -23,6 +25,12 @@ rsync -a \
 
 mkdir -p "${STAGE}/payload/packaging"
 rsync -a "${ROOT}/packaging/common/" "${STAGE}/payload/packaging/common/"
+python3 "${ROOT}/packaging/common/versions.py" stamp \
+  --root "${ROOT}" --dest "${STAGE}/payload/wave-link-linux" \
+  --component wavelink --suite "${VERSION}"
+python3 "${ROOT}/packaging/common/versions.py" stamp \
+  --root "${ROOT}" --dest "${STAGE}/payload/capture-card" \
+  --component hd60 --suite "${VERSION}"
 
 cat > "${STAGE}/payload/run-installer.sh" << 'EOF'
 #!/usr/bin/env bash

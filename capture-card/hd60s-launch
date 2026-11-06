@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# Startet das installierte HD60-Programm. Der Kernel-Treiber wird hier nicht angefasst.
+set -euo pipefail
+for candidate in \
+  /usr/local/libexec/hd60s/hd60s.py \
+  /usr/libexec/hd60s/hd60s.py
+do
+  if [[ -f "${candidate}" ]]; then
+    exec python3 "${candidate}" "$@"
+  fi
+done
+printf 'hd60s.py wurde nicht gefunden.\n' >&2
+exit 1

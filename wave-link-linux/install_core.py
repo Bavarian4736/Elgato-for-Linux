@@ -128,6 +128,64 @@ def _install_pipewire(log) -> None:
         log("PipeWire-Setup ist schon vorhanden.")
 
 
+def _repo_root() -> Path:
+    parent = ROOT.parent
+    if (parent / "packaging" / "common" / "versions.py").is_file():
+        return parent
+    return ROOT
+
+
+def _install_version_support(dest: Path) -> None:
+    repo = _repo_root()
+    tool = repo / "packaging" / "common" / "versions.py"
+    helper = dest / "wavelink_linux" / "_elgato_versions.py"
+    if not tool.is_file():
+        if (dest / "build-info.json").is_file() and helper.is_file():
+            return
+        raise InstallError(
+            "Versionswerkzeug fehlt. Installation aus dem Elgato-for-Linux-Ordner starten."
+        )
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text(tool.read_text(encoding="utf-8"), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(tool),
+            "stamp",
+            "--root",
+            str(repo),
+            "--dest",
+            str(dest),
+            "--component",
+            "wavelink",
+        ],
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        raise InstallError(detail or "Version konnte nicht geschrieben werden.")
+
+
+def install_userspace(log) -> None:
+    """Programm- und Plugin-Dateien aktualisieren, ohne PipeWire anzufassen."""
+    log("Aktualisiere nur die Programmdateien…")
+    APP_DIR.mkdir(parents=True, exist_ok=True)
+    if ROOT.resolve() != APP_DIR.resolve():
+        log("Kopiere die Programmdateien…")
+        _rsync(ROOT, APP_DIR)
+    _install_version_support(APP_DIR)
+    log("Lege den Starter an…")
+    _write_launcher()
+    _write_desktop()
+    if streamcontroller_present():
+        install_plugins(log)
+        log("StreamController neu starten, damit die Plugin-Version ankommt.")
+    else:
+        log("StreamController nicht gefunden — Erweiterung übersprungen.")
+    log("Wave Link ist aktualisiert. PipeWire wurde nicht neu gestartet.")
+
+
 def install_plugins(log) -> None:
     if not streamcontroller_present():
         raise InstallError(
@@ -153,6 +211,7 @@ def install_app(include_plugin: bool, log) -> None:
         _rsync(ROOT, APP_DIR)
     else:
         log("Die Dateien liegen schon im Programmordner.")
+    _install_version_support(APP_DIR)
     log("Lege den Starter an…")
     _write_launcher()
     _write_desktop()
@@ -242,6 +301,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Wave Link Linux und zugehörige Dateien entfernen",
     )
+    group.add_argument(
+        "--userspace",
+        action="store_true",
+        help="Nur Programmdateien aktualisieren, ohne PipeWire neu zu starten",
+    )
     args = parser.parse_args(argv)
 
     def log(message: str) -> None:
@@ -250,6 +314,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.uninstall:
             uninstall_app(log)
+        elif args.userspace:
+            install_userspace(log)
+            print("Start: wavelink-linux  oder im Menü WaveLink Linux")
         elif args.plugin_only:
             install_plugins(log)
             print("StreamController danach neu starten.")

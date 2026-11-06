@@ -16,9 +16,16 @@ trap cleanup EXIT
 
 mkdir -p "$TREE/driver" "${TOP}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 install -m 0755 "${ROOT}/hd60s.py" "${TREE}/hd60s.py"
+install -m 0644 "${ROOT}/version_info.py" "${TREE}/version_info.py"
+install -m 0644 "${ROOT}/../packaging/common/versions.py" "${TREE}/_elgato_versions.py"
+install -m 0644 "${ROOT}/VERSION" "${TREE}/VERSION"
+install -m 0644 "${ROOT}/DRIVER_VERSION" "${TREE}/DRIVER_VERSION"
+install -m 0755 "${ROOT}/hd60s-launch" "${TREE}/hd60s-launch"
 install -m 0644 "${ROOT}/hd60s.desktop" "${TREE}/hd60s.desktop"
 install -m 0644 "${ROOT}/hd60s.svg" "${TREE}/hd60s.svg"
 install -m 0644 "${ROOT}/LICENSE" "${TREE}/LICENSE"
+python3 "${ROOT}/../packaging/common/versions.py" stamp \
+  --root "${ROOT}/.." --dest "${TREE}" --component hd60
 
 mkdir -p "${WORKDIR}/driver-src"
 git -C "${WORKDIR}/driver-src" init

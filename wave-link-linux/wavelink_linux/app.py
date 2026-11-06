@@ -11,8 +11,8 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
-from . import __version__
 from .api_server import WaveLinkApiServer
+from .version import about_fields
 from .audio import AudioEngine
 from .background_portal import BackgroundListing
 from .channels import CHANNELS, MIC_CHANNEL, SINK_CHANNELS
@@ -542,8 +542,18 @@ class WaveLinkWindow(Adw.ApplicationWindow):
         self.set_content(root)
 
         header = Adw.HeaderBar()
-        header.set_title_widget(Gtk.Label(label="WaveLink Linux", css_classes=["brand"]))
+        about = about_fields()
+        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        title_box.append(Gtk.Label(label="WaveLink Linux", css_classes=["brand"]))
+        title_box.append(
+            Gtk.Label(
+                label=f"{about['version']}  ·  Elgato for Linux {about['suite_version']}",
+                css_classes=["caption", "hint"],
+            )
+        )
+        header.set_title_widget(title_box)
         menu = Gio.Menu()
+        menu.append("Info", "app.about")
         menu.append("Beenden", "app.quit")
         header.pack_end(
             Gtk.MenuButton(
@@ -849,6 +859,20 @@ class WaveLinkApp(Adw.Application):
             action.connect("activate", lambda *_args: self.quit())
             self.add_action(action)
             self.set_accels_for_action("app.quit", ["<primary>q"])
+        if not self.has_action("about"):
+            about_action = Gio.SimpleAction.new("about", None)
+            about_action.connect("activate", self._on_about)
+            self.add_action(about_action)
+
+    def _on_about(self, *_args) -> None:
+        about = about_fields()
+        dialog = Adw.AboutDialog()
+        dialog.set_application_name("WaveLink Linux")
+        dialog.set_developer_name("Bavarian4736")
+        dialog.set_version(about["version"])
+        dialog.set_comments(about["comments"])
+        dialog.set_website("https://github.com/Bavarian4736/Elgato-for-Linux")
+        dialog.present(self.get_active_window())
 
     def _mixer_window(self) -> WaveLinkWindow | None:
         for win in self.get_windows():

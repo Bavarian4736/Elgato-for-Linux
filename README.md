@@ -35,6 +35,17 @@ cd Elgato-for-Linux
 
 `./install.sh` installiert nacheinander HD60 und Wave Link. Mit Auswahlmenü (inkl. Deinstallation): `./install.sh --choose`. Für den Kernel-Treiber erscheint einmal der pkexec-Dialog.
 
+### Nur die Programmdateien aktualisieren
+
+Das übernimmt neue Versionen in den Info-Anzeigen, ohne den Kernel-Treiber neu zu laden und ohne PipeWire neu zu starten. Die laufenden Audio-Geräte bleiben dabei unangetastet. Danach die Fenster von HD60 und Wave Link neu öffnen.
+
+```bash
+./capture-card/install.sh --userspace
+./wave-link-linux/install.sh --userspace
+```
+
+`--userspace` bei HD60 schreibt nur das Programm nach `/usr/local` (pkexec fragt nach dem Passwort) und ruft weder DKMS noch `modprobe` auf. Bei Wave Link werden die Dateien nach `~/.local/share/wavelink-linux` kopiert. PipeWire wird dabei nicht neu gestartet. Ist StreamController installiert, werden die Plugins mitkopiert; StreamController selbst einmal neu starten, nicht PipeWire.
+
 ## Deinstallation
 
 Über denselben Installer oder aus dem Repo:

@@ -1,6 +1,6 @@
 Name:           hd60s
 Version:        1.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Bild und Ton der Elgato Game Capture HD60 S
 
 License:        MIT AND GPL-2.0-only
@@ -35,7 +35,13 @@ laufenden Kernel gebaut.
 %build
 
 %install
-install -D -m 0755 hd60s.py %{buildroot}%{_bindir}/hd60s
+install -D -m 0755 hd60s.py %{buildroot}%{_libexecdir}/hd60s/hd60s.py
+install -D -m 0644 version_info.py %{buildroot}%{_libexecdir}/hd60s/version_info.py
+install -D -m 0644 _elgato_versions.py %{buildroot}%{_libexecdir}/hd60s/_elgato_versions.py
+install -D -m 0644 VERSION %{buildroot}%{_libexecdir}/hd60s/VERSION
+install -D -m 0644 DRIVER_VERSION %{buildroot}%{_libexecdir}/hd60s/DRIVER_VERSION
+install -D -m 0644 build-info.json %{buildroot}%{_libexecdir}/hd60s/build-info.json
+install -D -m 0755 hd60s-launch %{buildroot}%{_bindir}/hd60s
 install -D -m 0644 hd60s.desktop %{buildroot}%{_datadir}/applications/hd60s.desktop
 install -D -m 0644 hd60s.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/hd60s.svg
 mkdir -p %{buildroot}/usr/src/hd60s-0.1
@@ -85,10 +91,13 @@ fi
 %files
 %license LICENSE
 %{_bindir}/hd60s
+%{_libexecdir}/hd60s
 %{_datadir}/applications/hd60s.desktop
 %{_datadir}/icons/hicolor/scalable/apps/hd60s.svg
 /usr/src/hd60s-0.1
 
 %changelog
+* Fri Nov 06 2026 Bavarian4736 <Bavarian4736@users.noreply.github.com> - 1.1.0-2
+- Programmversion kommt aus VERSION. Der Treiber bleibt hd60s/0.1.
 * Mon Nov 02 2026 Bavarian4736 <Bavarian4736@users.noreply.github.com> - 1.1.0-1
 - Erstes RPM-Paket mit Programm und DKMS-Treiber.
